@@ -35,6 +35,55 @@ def util_printlist_duplicate(flist):
             print each == flist[length]
             length -= 1
 
+class time_tracker(object):
+    def __init__(self, f):
+        """function pass to the constructor"""
+        self.f = f
+        self.counter = 0
+        self.total_time = 0
+        self.__name__ = f.__name__
+    def __call__(self, *args):
+        from time import time
+        start_time = time()
+
+        # call function
+        result = self.f(*args)
+
+        end_time = time()
+        # in ms
+        spent_time = (end_time - start_time) * 1000
+        self.counter += 1
+        self.total_time += spent_time
+
+        # time tracker output
+        if self.counter % 50 == 0:
+            print 'Function', '\''+ self.__name__ + '\'', 'called', self.counter, 'times'
+            print 'Total time spent:', '{:.2f}'.format(self.total_time), 'ms'
+
+        return result
+
+# simple function running time cost
+class simple_time_tracker(object):
+    def __init__(self, f):
+        """function pass to the constructor"""
+        self.f = f
+
+    def __call__(self, *args):
+        from time import time
+        start_time = time()
+
+        # call function
+        result = self.f(*args)
+
+        end_time = time()
+        # in ms
+        spent_time = (end_time - start_time) * 1000
+
+        print 'Total time spent:', '{:.2f}'.format(spent_time), 'ms'
+
+        return result
+
+
 class Timer():
     # this class provides very simple time tracking functions
     def __init__(self):
