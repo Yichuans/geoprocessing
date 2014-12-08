@@ -1,6 +1,6 @@
 #-------------------------------------------------------------------------------
 # Name:        WDPA inside out
-# Purpose:
+# Purpose:     To understand the WDPA better
 #
 # Author:      Yichuans
 #
@@ -10,6 +10,7 @@
 #-------------------------------------------------------------------------------
 
 import Yichuan10, itertools
+from Yichuan10 import time_tracker, simple_time_tracker
 
 # initial
 sr_mwd = Yichuan10.createSpatialRefBySRID101(54009)
@@ -23,57 +24,10 @@ inputlayer = r"D:\Yichuan\WDPA\WDPA_May2014_Proteus\WDPA_May2014.gdb\WDPA_poly_M
 
 # decorator class to track how much time a function takes to finish
 # multiple calls of the same function
-class time_tracker(object):
-    def __init__(self, f):
-        """function pass to the constructor"""
-        self.f = f
-        self.counter = 0
-        self.total_time = 0
-        self.__name__ = f.__name__
-    def __call__(self, *args):
-        from time import time
-        start_time = time()
-
-        # call function
-        result = self.f(*args)
-
-        end_time = time()
-        # in ms
-        spent_time = (end_time - start_time) * 1000
-        self.counter += 1
-        self.total_time += spent_time
-
-        # time tracker output
-        if self.counter % 50 == 0:
-            print 'Function', '\''+ self.__name__ + '\'', 'called', self.counter, 'times'
-            print 'Total time spent:', '{:.2f}'.format(self.total_time), 'ms'
-
-        return result
-
-# simple function running time cost
-class simple_time_tracker(object):
-    def __init__(self, f):
-        """function pass to the constructor"""
-        self.f = f
-
-    def __call__(self, *args):
-        from time import time
-        start_time = time()
-
-        # call function
-        result = self.f(*args)
-
-        end_time = time()
-        # in ms
-        spent_time = (end_time - start_time) * 1000
-
-        print 'Total time spent:', '{:.2f}'.format(spent_time), 'ms'
-
-        return result
 
 # debug
 @time_tracker
-def test_draw_speed(num, a_iterable):
+def _test_draw_speed(num, a_iterable):
     a = list()
     while num:
         try:
@@ -85,27 +39,29 @@ def test_draw_speed(num, a_iterable):
 
     return a
 
-@simple_time_tracker
-def dummy_function(iterations):
+# @simple_time_tracker
+def _dummy_function(iterations):
     iter = range(iterations)
     for pair in itertools.combinations(iter, 2):
         a = pair[0] * pair[1]
 
     return a
 
-def test_tracker(times, load=100):
+def _test_tracker(times, load=100):
     while times:
-        dummy_function(load)
+        _dummy_function(load)
         times -= 1
 
     pass
 
+@time_tracker
+def _test_tracker_mk2(times, load=100):
+    while times:
+        _dummy_function(load)
+        times -=1
 
-
-def main(inputlayer):
-    # sr for area
-
-
+def wdpa_geom_identical_check(inputlayer):
+    """main function to investigation identical geom"""
     # need to have index first
     id_pool = Yichuan10.GetUniqueValuesFromFeatureLayer_mk2(inputlayer, 'wdpaid')
 
@@ -184,10 +140,32 @@ def compare_geom_pair(wdpaid1, wdpaid2):
 
         area_intersect = geom1.intersect(geom2).getArea('PLANAR')/1000000
 
-        return ((wdpaid1, area_geom1), (wdpaid2, area_geom2),('-'.join([wdpaid1, wdpaid2]), area_intersect))
+        return ((wdpaid1, area_geom1), (wdpaid2, area_geom2),('-'.join([wdpaigi1, wdpaid2]), area_intersect))
 
     else:
         pass
 
     return None
 
+#---------------- above deals with geom comparison -------------------
+# This section examines the differences in performance (time) of employing
+# single-part vs multi-part, vertex limits and perhaps multiprocessing 
+# where appropriate, using randam samples
+
+def select_samples():
+    pass
+
+def multipart_to_single_part():
+    pass
+
+
+def dice_vertices():
+    pass
+
+
+def process_without_optimisation():
+    pass
+
+
+def process_with_optimisation():
+    pass

@@ -36,6 +36,7 @@ def util_printlist_duplicate(flist):
             length -= 1
 
 class time_tracker(object):
+    """track number of function calls, cost of time, and total time"""
     def __init__(self, f):
         """function pass to the constructor"""
         self.f = f
@@ -56,9 +57,10 @@ class time_tracker(object):
         self.total_time += spent_time
 
         # time tracker output
-        if self.counter % 50 == 0:
-            print 'Function', '\''+ self.__name__ + '\'', 'called', self.counter, 'times'
-            print 'Total time spent:', '{:.2f}'.format(self.total_time), 'ms'
+        # if self.counter % 50 == 0:
+        print 'Function', '\''+ self.__name__ + '\'', 'called', self.counter, 'times'
+        print 'Time spent:,', '{:.f}'.format(spent_time), 'ms'
+        print 'Total time spent:', '{:.2f}'.format(self.total_time), 'ms'
 
         return result
 
@@ -875,56 +877,7 @@ class IUCNcheck(object):
         Printboth('Finished writing to output!')
 
 
-class time_tracker(object):
-    def __init__(self, f):
-        """function pass to the constructor"""
-        self.f = f
-        self.counter = 0
-        self.total_time = 0
-        self.__name__ = f.__name__
-    def __call__(self, *args):
-        from time import time
-        start_time = time()
-
-        # call function
-        result = self.f(*args)
-
-        end_time = time()
-        # in ms
-        spent_time = (end_time - start_time) * 1000
-        self.counter += 1
-        self.total_time += spent_time
-
-        # time tracker output
-        if self.counter % 50 == 0:
-            print 'Function', '\''+ self.__name__ + '\'', 'called', self.counter, 'times'
-            print 'Total time spent:', '{:.2f}'.format(self.total_time), 'ms'
-
-        return result
-
-# simple function running time cost
-class simple_time_tracker(object):
-    def __init__(self, f):
-        """function pass to the constructor"""
-        self.f = f
-
-    def __call__(self, *args):
-        from time import time
-        start_time = time()
-
-        # call function
-        result = self.f(*args)
-
-        end_time = time()
-        # in ms
-        spent_time = (end_time - start_time) * 1000
-
-        print 'Total time spent:', '{:.2f}'.format(spent_time), 'ms'
-
-        return result
-
-
-if __name__ != "__main__":
-    print "Yichuan10 module imported at %s, %s"%(CurrentTime,ModifiedDate)
-else:
-    pass
+# if __name__ != "__main__":
+#     print "Yichuan10 module imported at %s, %s"%(CurrentTime,ModifiedDate)
+# else:
+#     pass
