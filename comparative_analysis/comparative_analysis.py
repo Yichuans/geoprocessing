@@ -520,15 +520,7 @@ WH_SHAPE = 'arcgis.v_wh_spatial'
 TLS_SHAPE = 'tls.tentative'
 
 
-# WH data
-
-def _test():
-    input_nomination = 'ca_nomi.kkfc'
-    output_schema = 'ca_2014'
-    themename = 'udv_dcw_r'
-    run_ca_for_a_theme(input_nomination, output_schema, themename, conn_arg=get_ca_conn_arg())
-
-
+# Run ca 2014
 def ca_2014():
     # output-schema needs to be created ahead
     # input_nomination has the standard wdpa schema
@@ -562,3 +554,9 @@ def clean_view(schema_to_clean, conn_arg=get_ca_conn_arg()):
 
 
 
+
+def _test():
+    input_nomination = 'ca_nomi.kkfc'
+    output_schema = 'ca_2014'
+    themename = 'udv_dcw_r'
+    run_ca_for_a_theme(input_nomination, output_schema, themename, conn_arg=get_ca_conn_arg())
