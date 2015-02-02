@@ -7,60 +7,14 @@
 import Yichuan10
 import os, sys, codecs
 import arcpy, numpy, math
+from Yichuan10 import simple_time_tracker
 
 from YichuanRAS import *
 
-def raster_area(raster_object):
-    """ this function takes an raster object or path and creates an numpy array with areas per cell
-    This should be used in conjunction with the numpy array created using ArcGIS's
-    RasterToNumpyArray
-
-    Corrected"""
-    # nrow is the row number (lat), derived from raster object
-    # for each row calculate area A=r^2 * cellsize * (sin(ymin + (i+1)*cellsize) - sin(ymin + icellsize))
-
-    # authalic radius: assuming same surface area (spheroid) as if the earth was a perfect sphere
-    # http://en.wikipedia.org/wiki/Earth_radius#Authalic_radius
-
-    # make sure this is the arcpy raster object
-    if not isinstance(raster_object, arcpy.Raster):
-        raster_object = arcpy.Raster(raster_object)
-
-    r = 6371.0072
-    cellsize = raster_object.meanCellHeight
-    nrow = raster_object.height
-    ncol = raster_object.width
-    ymax = raster_object.extent.YMax
-
-    # in rad
-    cellsize_pi = cellsize * numpy.pi / 180
-    ymax_pi = ymax * numpy.pi / 180
-
-    stack_list = list()
-    for i in range(nrow):
-        # all in degress
-        y2 = ymax_pi - i*cellsize_pi
-        y1 = y2 - cellsize_pi
-
-        # calculate area
-        ith_area = (r * r * cellsize_pi) * (numpy.sin(y2) - numpy.sin(y1))
-
-        # all same latitude cells have same areas
-        ith_array = numpy.array([ith_area], 'float32')
-
-        # append to list for vstack later
-        stack_list.append(ith_array)
-
-    # create ndarray using vstack; note the difference in storage. e.g. i = 0 refers to the bottom row in raster
-    # whilst it is the first row in the array
-    result = numpy.vstack(stack_list)
-
-    print result.shape
-    return result
 
 def forest(workspace, fc, outputfile, fail_log=None):
     # input data mosaic
-    rasterpath = r"C:\Ys\Hansen2013\loss_year.gdb\hansenlossyear"
+    rasterpath = r"D:\Yichuan\Hansen\data.gdb\loss_year"
 
     # set workspace
     if not os.path.exists(workspace):
@@ -75,11 +29,10 @@ def forest(workspace, fc, outputfile, fail_log=None):
     arcpy.env.workspace = workspace_clip
 
     # create header:
-    headerlist = ['wdpaid',
-            'pa_name',
+    headerlist = ['patch_id',
             'year',
             'count_pixel',
-            'total_area']
+            'total_area_km2']
 
     # for assessing result dict
     datalist = headerlist[2:]
@@ -95,28 +48,26 @@ def forest(workspace, fc, outputfile, fail_log=None):
 
     else:
         # if with list
-
-        where_clause = '\"wdpaid\" in (' + Yichuan10.CreateListFromTxtTable(fail_log) + ')'
+        where_clause = '\"patch_id\" in (' + Yichuan10.CreateListFromTxtTable(fail_log) + ')'
 
 
     raster = arcpy.Raster(rasterpath)
-    pa_set = set(Yichuan10.GetUniqueValuesFromFeatureLayer_mk2(fc, 'wdpaid'))
+    pa_set = set(Yichuan10.GetUniqueValuesFromFeatureLayer_mk2(fc, 'patch_id'))
     pa_unfinish_set = set()
 
-    # where_clause = '\"wdpaid\" = 2017'
+    # where_clause = '\"patch_id\" = 2017'
 
     # PA clipping carbon rasters
-    with arcpy.da.SearchCursor(fc, ('wdpaid', 'name', 'SHAPE@'), where_clause=where_clause) as cursor:
+    with arcpy.da.SearchCursor(fc, ('patch_id', 'SHAPE@'), where_clause=where_clause) as cursor:
         # for each site
         for row in cursor:
             # if the raster extent contains the feature geom, clip rasters
-            geom = row[2]
-            wdpaid = row[0]
-            pa_name = row[1]
+            geom = row[1]
+            patch_id = row[0]
             try:
                 if raster.extent.overlaps(geom) or raster.extent.contains(geom) :
 
-                    out_ras = str(wdpaid) +'.tif'
+                    out_ras = str(patch_id) +'.tif'
 
                     # clip
                     clip_raster(geom, rasterpath, out_ras, no_data=0)
@@ -125,12 +76,12 @@ def forest(workspace, fc, outputfile, fail_log=None):
                     f = codecs.open(outputfile, 'a', 'utf-8')
 
                     # returns a dictionary
-                    result = desforestation(arcpy.env.workspace+os.sep+out_ras, 0)
+                    result = desforestation(arcpy.env.workspace+os.sep+out_ras)
 
                     # add to line list
                     for year in result:
-                        # for each wdpaid
-                        line = str(wdpaid) + ',\"' + pa_name + '\",'
+                        # for each patch_id
+                        line = str(patch_id) + ','
 
                         # year, count pixels, total area
                         all_results = [year, result[year][0], result[year][1]]
@@ -141,17 +92,17 @@ def forest(workspace, fc, outputfile, fail_log=None):
                         f.write('\n')
 
                     # complete
-                    print 'complete: ' + str(wdpaid)
+                    print 'complete: ' + str(patch_id)
 
                 else:
-                    print 'pass: ' + str(wdpaid)
+                    print 'pass: ' + str(patch_id)
 
                 # finally remove id
-                pa_set.remove(wdpaid)
+                pa_set.remove(patch_id)
 
             except Exception as e:
-                pa_unfinish_set.add(wdpaid)
-                Yichuan10.Printboth('Error: ' + str(wdpaid))
+                pa_unfinish_set.add(patch_id)
+                Yichuan10.Printboth('Error: ' + str(patch_id))
                 Yichuan10.Printboth(str(e))
                 Yichuan10.Printboth(sys.exc_info()[0])
             finally:
@@ -163,20 +114,18 @@ def forest(workspace, fc, outputfile, fail_log=None):
         Yichuan10.ExportListToTxt(pa_unfinish_set, 'log_fail.txt')
 
 
-def desforestation(ras, nodata):
+def desforestation(ras):
     """input raster path -> return stats"""
     """input raster path -> return stats"""
 
     # get area grid
     area_grid = raster_area_lat(ras) # true WGS84 spheroid
-    # getting numpy object
 
-    #ras_np_raw = arcpy.RasterToNumPyArray(ras, ncols = ncols, nrows = nrows, nodata_to_value= nodata)
+    # getting numpy object
     ras_np_raw = gdal_tif_to_numpy(ras)
     # masking data not need as further masked below
-    # ras_np = numpy.ma.masked_values(ras_np_raw, nodata)
 
-    # 0 - no loss, 1 - change in 2000-2001, .. 12 change 2011-2012
+    # 0 - no loss, 1 - change in 2000-2001, .. 12 change 2011-2013
     years = range(0, 14)
     year_dict = dict()
 
@@ -197,3 +146,20 @@ def desforestation(ras, nodata):
         year_dict[year] = [count_pixel, total_area]
 
     return year_dict
+
+# main function
+def main():
+	workspace = r"D:\Yichuan\BrianO\UNEP-report\analysis"
+	fc = r"D:\Yichuan\BrianO\UNEP-report\ce_africa_selection.shp"
+	outputfile = "result.txt"
+	forest(workspace, fc, outputfile)
+
+
+@simple_time_tracker
+def _test():
+	#out_ras = r"C:\Ys\Hansen2013\wh_clip\clip" + os.sep + str(2571) + '.tif'
+	out_ras = r"C:\Users\yichuans\Documents\ArcGIS\loss_year_Clip_china.tif"
+	return desforestation(out_ras)
+
+
+main()
