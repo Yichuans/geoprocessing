@@ -17,7 +17,7 @@ FROM
 WHERE 
   afr.patch_id = country_ecoregion.patch_id AND year != 0 AND iso3_code not in ('ESP', ' ', 'ISR', 'PSE', 'XXX')
 )
-SELECT iso3_code, terr_name, year, sum(total_area_km2) as total_area_km2
+SELECT iso3_code, terr_name, year, sum(total_area_km2) ::double precision as total_area_km2
 FROM a
 GROUP BY iso3_code, terr_name, year
 ORDER BY iso3_code, year;
@@ -41,7 +41,7 @@ FROM
 WHERE 
   afr.patch_id = country_ecoregion.patch_id AND year != 0 AND iso3_code not in ('ESP', ' ', 'ISR', 'PSE', 'XXX')
 )
-SELECT eco_name, biome, realm, year, sum(total_area_km2) as total_area_km2
+SELECT eco_name, biome, realm, year, sum(total_area_km2)::double precision as total_area_km2
 FROM a
 GROUP BY eco_name, biome, realm, year
 ORDER BY eco_name, biome, realm, year;
@@ -68,7 +68,7 @@ WHERE
  bioid = biome AND
   afr.patch_id = country_ecoregion.patch_id AND year != 0 AND iso3_code not in ('ESP', ' ', 'ISR', 'PSE', 'XXX')
 )
-SELECT biome, biome_name, year, sum(total_area_km2) as total_area_km2
+SELECT biome, biome_name, year, sum(total_area_km2)::double precision as total_area_km2
 FROM a
 GROUP BY biome, biome_name, year
 ORDER BY biome, year;
@@ -93,7 +93,7 @@ FROM
 WHERE 
   afr.patch_id = country_ecoregion.patch_id AND year != 0 AND iso3_code not in ('ESP', ' ', 'ISR', 'PSE', 'XXX')
 )
-SELECT year, sum(total_area_km2) as total_area_km2
+SELECT year, sum(total_area_km2) ::double precision as total_area_km2
 FROM a
 GROUP BY year
 ORDER BY year;
