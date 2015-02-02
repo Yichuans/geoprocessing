@@ -54,6 +54,7 @@ def gdal_tif_to_numpy(ras):
     # print 'Convert to numpy array (gdal):', ras, np_ras.shape, float(np_ras.nbytes)/1024/1024, 'MB', np_ras.dtype
 
     # memory management
+    # del does not work. Need to specifically set to None to release memory
     ras_gdal = None
     ras_band = None
 
@@ -132,7 +133,8 @@ def raster_area_lat(ras):
     # free memory not sure needed
     del raster_object
 
-    print 'Lat area grid numpy:', result.shape, float(result.nbytes)/1024/1024, 'MB', result.dtype
+    # debug
+    # print 'Lat area grid numpy:', result.shape, float(result.nbytes)/1024/1024, 'MB', result.dtype
 
     return result
 
@@ -197,7 +199,7 @@ if __name__ == '__main__':
 
 
 def _test_np(wdpaid=2571, arc=False):
-    out_ras = r"C:\test" + os.sep + str(wdpaid) + '.tif'
+    out_ras = r"C:\Ys\Hansen2013\wh_clip\clip" + os.sep + str(wdpaid) + '.tif'
     print out_ras
     if arc:
         return arcpy_tif_to_numpy(out_ras)
@@ -205,7 +207,7 @@ def _test_np(wdpaid=2571, arc=False):
         return gdal_tif_to_numpy(out_ras)
 
 def _test_area(wdpaid = 2571):
-    out_ras = r"C:\test" + os.sep + str(wdpaid) + '.tif'
+    out_ras = r"C:\Ys\Hansen2013\wh_clip\clip" + os.sep + str(wdpaid) + '.tif'
     print out_ras
     return raster_area_lat(out_ras)
 
