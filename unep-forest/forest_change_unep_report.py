@@ -141,7 +141,9 @@ def desforestation(ras):
         count_pixel = ras_sub_mask.mask.sum()
 
         # True is treated as 1
-        total_area = (ras_sub_mask.mask * area_grid).sum()
+        # need to include dtype = 'float64' otherwise the calcaulate will produce
+        # incorrect result
+        total_area = (ras_sub_mask.mask * area_grid).sum(dtype='float64')
 
         year_dict[year] = [count_pixel, total_area]
 
