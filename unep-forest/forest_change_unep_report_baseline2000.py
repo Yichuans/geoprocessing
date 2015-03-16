@@ -11,7 +11,6 @@ from Yichuan10 import simple_time_tracker
 
 from YichuanRAS import *
 
-
 def forest(workspace, fc, outputfile, fail_log=None):
     # input data mosaic
     rasterpath = r"D:\Yichuan\Hansen\data.gdb\treecover"
@@ -135,6 +134,32 @@ def desforestation(ras):
     result = [count_pixel, total_area]
 
     return result
+
+def desforestation_no_treshold(ras):
+    """input raster path -> return stats"""
+    """input raster path -> return stats"""
+
+    # get area grid
+    area_grid = raster_area_lat(ras) # true WGS84 spheroid
+
+    # getting numpy object
+    ras_np_raw = gdal_tif_to_numpy(ras)
+    # masking data not need as further masked below
+
+    # create mask greater than 10
+    ras_sub_mask = numpy.ma.masked_greater_equal(ras_np_raw, 10)
+
+    # use count (no mask) NOT size (including mask)
+    # count_pixel = ras_sub.count()
+    count_pixel = ras_sub_mask.mask.sum()
+
+    # True is treated as 1
+    total_area = (ras_np_raw * ras_sub_mask.mask * area_grid / 100).sum(dtype ='float64')
+
+    result = [count_pixel, total_area]
+
+    return result
+
 
 
 # test suite
