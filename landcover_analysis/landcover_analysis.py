@@ -8,19 +8,23 @@ import os
 import numpy as np
 from Yichuan10 import simple_time_tracker
 from rasterstats import zonal_stats
-from YichuanM import get_field_value
 from osgeo import gdal, ogr, osr
 
 LANDCOVER_INDEX_2000 = r"D:\Yichuan\NGCC\GLC_v1\index\index00.shp"
 LANDCOVER_INDEX_2010 = r"D:\Yichuan\NGCC\GLC_v1\index\index10.shp"
 LANDCOVER_TILE_PATH_2000 = r"D:\Yichuan\NGCC\GLC_v1\Globecover_2000_pub"
 LANDCOVER_TILE_PATH_2010 = r"D:\Yichuan\NGCC\GLC_v1\Globecover_2010_pub"
+
 # nodata_value
 NO_DATA_VALUE = 0
 
-def vector_conversion_matrix(a, b):
-    """Create element wise concatenation"""
-    return str(int(a)) + '-' + str(int(b))
+def vectorise_conversion_matrix(a, b):
+    def conversion_matrix(a, b):
+        """Create element wise concatenation"""
+        return str(int(a)) + '-' + str(int(b))
+
+    vfunc = np.vectorize(conversion_matrix)
+    return vfunc
 
 def create_mem_ds_from_ds_by_wdpaid(datasource, wdpaid):
     """polygon data source input (shp), and specify wdpaid (int) -> <vector ds in mem>"""
@@ -116,7 +120,6 @@ def overlay_feature_array(select_feature_ds, landcover_tile_path):
     """
     from math import floor, ceil
 
-
     # prepare raster
     lc_ds = gdal.Open(landcover_tile_path)
     lc_rb = lc_ds.GetRasterBand(1)
@@ -190,9 +193,12 @@ def overlay_feature_array(select_feature_ds, landcover_tile_path):
         pixelHeight
     )
 
-    # debug
-    v_target_ds = gdal.GetDriverByName('GTiff').Create('v_rasterise1.tif', xsize, ysize, 1, gdal.GDT_Byte)
-    # v_target_ds = gdal.GetDriverByName('MEM').Create('v_rasterise', xsize, ysize, 1, gdal.GDT_Byte)
+    # # debug
+    # v_target_ds = gdal.GetDriverByName('GTiff').Create('v_debug_rasterise_test.tif', xsize, ysize, 1, gdal.GDT_Byte)
+    # print 'origin:', (new_gt[0], new_gt[3])
+
+    v_target_ds = gdal.GetDriverByName('MEM').Create('v_rasterise', xsize, ysize, 1, gdal.GDT_Byte)
+
         # set new georeference for the vector rasterization
     v_target_ds.SetGeoTransform(new_gt)
         # use the raster source spatial reference
@@ -213,6 +219,54 @@ def overlay_feature_array(select_feature_ds, landcover_tile_path):
 
     return out_array
 
+def analyse_categorical(input_array_with_mask):
+    """return the count of each category in the masked array"""
+    from collections import Counter
+
+    # disregard masked values
+    result = input_array_with_mask.compressed()
+    return Counter(result)
+
+def analyse_categorical_conversion(array1, array2):
+    """Conversion matrix"""
+    from collections import Counter
+
+    out_array = vectorise_conversion_matrix(array1, array2)
+    result = out_array.compressed()
+    return Counter(result)
+
+
+
+def array2raster(input_array, output_raster_path, target_srid, rasterOrigin, pixelWidth, pixelHeight):
+    """
+    Utility for checking output array
+    <input_array: make sure it is not a masked array>, <output raster in Gtiff>, <srid>, <upper left in tupple>
+    <x cell size>, <y cell size, negative>
+    """
+
+    cols = input_array.shape[1]
+    rows = input_array.shape[0]
+    originX = rasterOrigin[0]
+    originY = rasterOrigin[1]
+
+    driver = gdal.GetDriverByName('GTiff')
+    outRaster = driver.Create(output_raster_path, cols, rows, 1, gdal.GDT_Byte)
+    outRaster.SetGeoTransform((originX, pixelWidth, 0, originY, 0, pixelHeight))
+    outband = outRaster.GetRasterBand(1)
+    outband.WriteArray(input_array)
+    outRaster_sr = osr.SpatialReference()
+    outRaster_sr.ImportFromEPSG(target_srid)
+    outRaster.SetProjection(outRaster_sr.ExportToWkt())
+    outband.FlushCache()
+
+def _test_array2raster(input_array, rasterOrigin):
+
+    output_raster_path = 'v_debug_rasterise_test_array.tif'
+    target_srid = 32636
+    pixelWidth = 30
+    pixelHeight = -30
+    array2raster(input_array.filled(99), output_raster_path, target_srid, rasterOrigin, pixelWidth, pixelHeight)
+
 def _test_overlay_feature_array():
 
     datasource = r"D:\Yichuan\TEMP\dump_jor_n.shp"
@@ -227,13 +281,11 @@ def _test_overlay_feature_array():
     print path_list
     landcover_tile_path = path_list[0]
 
-    return overlay_feature_array(select_feature_ds, landcover_tile_path), 
-
+    return overlay_feature_array(select_feature_ds, landcover_tile_path)
 
 def find_landcover_tile(feature_geom, year):
     """ <geometry object>, <landcover shapefile index> -> path
     SRs must all be WGS84
-
     """
     if year == 2000:
         LANDCOVER_INDEX = LANDCOVER_INDEX_2000
@@ -254,13 +306,6 @@ def find_landcover_tile(feature_geom, year):
     path_list = [LANDCOVER_TILE_PATH + os.sep + tile_id + '_' + str(year) + 'LC030' + os.sep + tile_id + '_' + str(year) + 'LC030.tif' for tile_id in tile_id_list]
 
     return path_list
-
-# def _test_find_landcover_tile(feature_geom, landcover_index = LANDCOVER_INDEX_2000, year = 2000):
-#     return find_landcover_tile(feature_geom, landcover_index, year)
-
-
-
-
 
 def test_rasterize2(pixel_size=0.00803):
     import random, math
@@ -498,14 +543,6 @@ def _test_rasterize(pixel_size=0.00803):
 # _test_rasterize()
 
 # _test_create_layer_from_geom()
-@simple_time_tracker
-def _test():
-    ras = r"D:\Yichuan\BrianO\WA\clip_loss\0.tif"
-    ras
-    vec = r"D:\Yichuan\BrianO\WA\wa_teow.shp"
-    myshp = get_field_value(vec, 0, 'shape@', 'patch_id')
-    result = zonal_stats(myshp, ras, categorical=True)
-    return result
 
 
 def _test_read_write():
