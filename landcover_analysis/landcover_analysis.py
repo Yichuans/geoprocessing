@@ -6,14 +6,15 @@
 #-------------------------------------------------------------------------------
 import os
 import numpy as np
-from Yichuan10 import simple_time_tracker
-from rasterstats import zonal_stats
+from Yichuan10 import simple_time_tracker, GetUniqueValuesFromFeatureLayer_ogr
 from osgeo import gdal, ogr, osr
 
+# constant
 LANDCOVER_INDEX_2000 = r"D:\Yichuan\NGCC\GLC_v1\index\index00.shp"
 LANDCOVER_INDEX_2010 = r"D:\Yichuan\NGCC\GLC_v1\index\index10.shp"
 LANDCOVER_TILE_PATH_2000 = r"D:\Yichuan\NGCC\GLC_v1\Globecover_2000_pub"
 LANDCOVER_TILE_PATH_2010 = r"D:\Yichuan\NGCC\GLC_v1\Globecover_2010_pub"
+WH_DATASOURCE = r'D:\Yichuan\WHS_dump_SHP\whs_dump_140724.shp'
 
 # nodata_value
 NO_DATA_VALUE = 0
@@ -24,14 +25,14 @@ def vectorise_conversion_matrix(a, b):
         return str(int(a)) + '-' + str(int(b))
 
     vfunc = np.vectorize(conversion_matrix)
-    return vfunc
+    return vfunc(a, b)
 
 def create_mem_ds_from_ds_by_wdpaid(datasource, wdpaid):
     """polygon data source input (shp), and specify wdpaid (int) -> <vector ds in mem>"""
     # open datasource, 0 = readonly, 1=update
     source_ds = ogr.Open(datasource, 0)
 
-    # for shapefile, the only layer
+    # for shapefile, the only layer; if filegdb, the first feature class within FGDB
     source_layer = source_ds.GetLayer(0)
 
     # spatial reference
@@ -183,6 +184,12 @@ def overlay_feature_array(select_feature_ds, landcover_tile_path):
     # read raster array
     ras_array = lc_rb.ReadAsArray(xoff, yoff, xsize, ysize)
 
+    # debug print data type
+    # print 'raster datatype', ras_array.dtype
+
+    lc_rb = None
+    lc_ds = None
+
     # read vector array
     new_gt = (
         xOrigin + (x1 * pixelWidth),
@@ -207,6 +214,9 @@ def overlay_feature_array(select_feature_ds, landcover_tile_path):
     gdal.RasterizeLayer(v_target_ds, [1], v_layer, burn_values=(1,))
 
     v_array = v_target_ds.ReadAsArray()
+    # print 'vector converted datatype', v_array.dtype
+
+    v_target_ds = None
 
     # combine as a masked array
     out_array = np.ma.MaskedArray(
@@ -217,7 +227,11 @@ def overlay_feature_array(select_feature_ds, landcover_tile_path):
                 )
             )
 
-    return out_array
+    # get the target srid
+    target_srid = int(target_sr.GetAttrValue('AUTHORITY', 1))
+
+    # the second output for debugging
+    return out_array, [target_srid, (new_gt[0], new_gt[3]), new_gt[1], new_gt[5]]
 
 def analyse_categorical(input_array_with_mask):
     """return the count of each category in the masked array"""
@@ -234,7 +248,6 @@ def analyse_categorical_conversion(array1, array2):
     out_array = vectorise_conversion_matrix(array1, array2)
     result = out_array.compressed()
     return Counter(result)
-
 
 
 def array2raster(input_array, output_raster_path, target_srid, rasterOrigin, pixelWidth, pixelHeight):
@@ -259,29 +272,8 @@ def array2raster(input_array, output_raster_path, target_srid, rasterOrigin, pix
     outRaster.SetProjection(outRaster_sr.ExportToWkt())
     outband.FlushCache()
 
-def _test_array2raster(input_array, rasterOrigin):
-
-    output_raster_path = 'v_debug_rasterise_test_array.tif'
-    target_srid = 32636
-    pixelWidth = 30
-    pixelHeight = -30
-    array2raster(input_array.filled(99), output_raster_path, target_srid, rasterOrigin, pixelWidth, pixelHeight)
-
-def _test_overlay_feature_array():
-
-    datasource = r"D:\Yichuan\TEMP\dump_jor_n.shp"
-    wdpaid = 17240
-    select_feature_ds = create_mem_ds_from_ds_by_wdpaid(datasource, wdpaid)
-
-    lyr = select_feature_ds.GetLayer(0)
-    feature = lyr[0]
-    feature_geom = feature.geometry().Clone()
-
-    path_list = find_landcover_tile(feature_geom, year = 2000)
-    print path_list
-    landcover_tile_path = path_list[0]
-
-    return overlay_feature_array(select_feature_ds, landcover_tile_path)
+    outband = None
+    outRaster = None
 
 def find_landcover_tile(feature_geom, year):
     """ <geometry object>, <landcover shapefile index> -> path
@@ -307,284 +299,165 @@ def find_landcover_tile(feature_geom, year):
 
     return path_list
 
-def test_rasterize2(pixel_size=0.00803):
-    import random, math
+def find_landcover_tile_mk2(feature_geom):
+    """ <geometry object> -> pathlist [(2000, 2010),...]
+    SRs must all be WGS84
+    """
+    path_list = list()
 
-    source_path = r"D:\Yichuan\TEMP\dump_jor_n.shp"
-    # Open the data source
-    orig_data_source = ogr.Open(source_path)
-    # Make a copy of the layer's data source because we'll need to 
-    # modify its attributes table
-    source_ds = ogr.GetDriverByName("Memory").CopyDataSource(orig_data_source, "")
+    # get any tile
+    LANDCOVER_INDEX = LANDCOVER_INDEX_2010
+    index_ds = ogr.Open(LANDCOVER_INDEX)
 
-    source_layer = source_ds.GetLayer(0)
-    source_srs = source_layer.GetSpatialRef()
+    index_layer = index_ds.GetLayer()
+    index_layer.SetSpatialFilter(feature_geom)
 
-    # select a feature and rasterise
-    select_source_ds = create_mem_ds_from_ds_by_wdpaid(source_path, 3215)
-    select_source_layer = select_source_ds.GetLayer(0)
+    # get tile id
+    tile_id_list = [feature.GetField('idx') for feature in index_layer]
 
-    # get geometry of the first 
-    # a_geom = select_source_layer.GetNextFeature().geometry()
+    for tile_id in tile_id_list:
+        path_2000 = LANDCOVER_TILE_PATH_2000 + os.sep + tile_id + '_' + '2000' + 'LC030' + os.sep + tile_id + '_' + '2000' + 'LC030.tif'
+        path_2010 = LANDCOVER_TILE_PATH_2010 + os.sep + tile_id + '_' + '2010' + 'LC030' + os.sep + tile_id + '_' + '2010' + 'LC030.tif'
 
-    # x_min, x_max, y_min, y_max = a_geom.GetEnvelope()
-
-    # no longer need geometry
-    x_min, x_max, y_min, y_max = select_source_layer.GetExtent()
-
-    # print x_min, x_max, y_min, y_max
-
-    # Create the destination data source
-    x_res = int(math.ceil((x_max - x_min) / pixel_size))
-    y_res = int(math.ceil((y_max - y_min) / pixel_size))
-
-    # print x_res, y_res
-    target_ds = gdal.GetDriverByName('GTiff').Create('output_dst5.tif', x_res, y_res, 1, gdal.GDT_Byte)
-
-    target_ds.SetGeoTransform((
-            x_min, pixel_size, 0,
-            y_max, 0, -pixel_size,
-        ))
-
-    if source_srs:
-        # Make the target raster have the same projection as the source
-        target_ds.SetProjection(source_srs.ExportToWkt())
-    else:
-        # Source has no projection (needs GDAL >= 1.7.0 to work)
-        target_ds.SetProjection('LOCAL_CS["arbitrary"]')
-
-    # Rasterize
-    err = gdal.RasterizeLayer(target_ds, [1], select_source_layer,
-            burn_values=(1,))
-
-    if err != 0:
-        raise Exception("error rasterizing layer: %s" % err)
-
-
-
-def _test_get_features(vectors, layer_num=0):
-    from osgeo import osr
-    class OGRError(Exception):
-        pass
-
-    def get_ogr_ds(vds):
-        from osgeo import ogr
-        if not isinstance(vds, str):
-            raise OGRError("OGR cannot open %r: not a string" % vds)
-
-        ds = ogr.Open(vds)
-        if not ds:
-            raise OGRError("OGR cannot open %r" % vds)
-
-        return ds
-
-    def ogr_srs(vector, layer_num):
-        ds = get_ogr_ds(vector)
-        layer = ds.GetLayer(layer_num)
-        return layer.GetSpatialRef()
-
-
-    def ogr_records(vector, layer_num=0):
-        ds = get_ogr_ds(vector)
-        layer = ds.GetLayer(layer_num)
-        if layer.GetFeatureCount() == 0:
-            raise OGRError("No Features")
-        feature = layer.GetNextFeature()
-        while feature is not None:
-            yield feature_to_geojson(feature)
-            feature = layer.GetNextFeature()
-
-
-    spatial_ref = osr.SpatialReference()
-    if isinstance(vectors, str):
-        try:
-            # either an OGR layer ...
-            get_ogr_ds(vectors)
-            features_iter = ogr_records(vectors, layer_num)
-            spatial_ref = ogr_srs(vectors, layer_num)
-            strategy = "ogr"
-        except (OGRError, AttributeError):
-            # ... or a single string to be parsed as wkt/wkb/json
-            feat = parse_geo(vectors)
-            features_iter = [feat]
-            strategy = "single_geo"
-    elif isinstance(vectors, bytes):
-        # wkb
-        feat = parse_geo(vectors)
-        features_iter = [feat]
-        strategy = "single_geo"
-    elif hasattr(vectors, '__geo_interface__'):
-        geotype = vectors.__geo_interface__['type']
-        if geotype.lower() == 'featurecollection':
-            # ... a featurecollection
-            features_iter = geo_records(vectors.__geo_interface__['features'])
-            strategy = "geo_featurecollection"
+        if os.path.exists(path_2000) and os.path.exists(path_2010):
+            path_list.append([path_2000, path_2010])
         else:
-            # ... or an single object
-            feat = parse_geo(vectors)
-            features_iter = [feat]
-            strategy = "single_geo"
-    elif isinstance(vectors, dict):
-        # ... or an python mapping
-        feat = parse_geo(vectors)
-        features_iter = [feat]
-        strategy = "single_geo"
+            print 'Warning:', path_2000, 'or', path_2010, 'doesn\'t exist'
+
+    return path_list
+
+@simple_time_tracker
+def process_each_wh_site(wdpaid):
+    # for each WH site by id 
+    wh_ds_mem = create_mem_ds_from_ds_by_wdpaid(WH_DATASOURCE, wdpaid)
+
+    # get geom
+    lyr = wh_ds_mem.GetLayer(0)
+    feature = lyr[0]
+    feature_geom = feature.geometry().Clone()
+
+    # get paths of 2000 and 2010
+    path_list = find_landcover_tile_mk2(feature_geom)
+
+    # debug
+    for each in path_list:
+        print each[0] # 2000
+
+    # main
+    counter = 0
+    result_list = list()
+    for path_2000, path_2010 in path_list:
+        counter += 1
+
+        # raster - vector overlap as numpy array
+        out_array_2000, array2raster_param_2000 = overlay_feature_array(wh_ds_mem, path_2000)
+        out_array_2010, array2raster_param_2010 = overlay_feature_array(wh_ds_mem, path_2010)
+
+        #
+        # out_array_2000.astype(np.uint8)
+        # out_array_2010.astype(np.uint8)
+
+        # analyse arrays
+        stats_2000 = analyse_categorical(out_array_2000)
+        stats_2010 = analyse_categorical(out_array_2010)
+        stats_conv = analyse_categorical_conversion(out_array_2000, out_array_2010)
+
+        # # debug: export to disk =========================
+        # out_array_2000_with_fill = out_array_2000.filled(99)
+        # out_array_2010_with_fill = out_array_2010.filled(99)
+        # debug_tif_path_2000 = str(wdpaid) + '_2000_' + str(counter) + '.tif'
+        # debug_tif_path_2010 = str(wdpaid) + '_2010_' + str(counter) + '.tif'
+        # array2raster(out_array_2000_with_fill, debug_tif_path_2000, *array2raster_param_2000)
+        # array2raster(out_array_2010_with_fill, debug_tif_path_2010, *array2raster_param_2010)
+        # # debug: ends ===================================
+
+        # format
+        result_list.extend([[wdpaid, '2000', str(each_class), stats_2000[each_class]] for each_class in stats_2000])
+        result_list.extend([[wdpaid, '2010', str(each_class), stats_2010[each_class]] for each_class in stats_2010])
+        result_list.extend([[wdpaid, '2000-2010', str(each_class), stats_conv[each_class]] for each_class in stats_conv])
+
+    return result_list
+
+def write_each_wh_result(result_list, output):
+    if not os.path.exists(output):
+        f = open(output, 'w')
+        f.write('wdapaid,year,class,pixels\n')
+
     else:
-        # ... or an iterable of objects
-        features_iter = geo_records(vectors)
-        strategy = "iter_geo"
+        f = open(output, 'a')
 
-    return features_iter, strategy, spatial_ref
+    for result in result_list:
+        f.write(','.join(map(str, result)) + '\n')
 
-def _test_rasterise_vector():
-
-    vds = ogr.Open(r"D:\Yichuan\TEMP\jor2.shp")
-    vlayer = vds.GetLayer(0)
-
-    output_dst = r"D:\yichuan\temp\gdal_test_out3.tif"
-
-    target_ds = gdal.GetDriverByName('GTiff').Create(output_dst, 1000, 1000)
-
-    return vds, vlayer, target_ds
-    # target_ds.SetGeoTransform((x_start, pixelWidth, 0, y_start, 0, pixelHeight))
-
-    # gdal.RasterizeLayer(target_ds, [1], vlayer, None, None,
-    #                     burn_values=[1])
+    f.close()
 
 
-def _test_rasterize_original(pixel_size=0.00803):
-    import random
-    RASTERIZE_COLOR_FIELD = "__color__"
+# -------------- TEST suites----------------
+def _test_find_tiles():
+    datasource = r"D:\Yichuan\TEMP\dump_jor_n.shp"
+    wdpaid = 17240
+    select_feature_ds = create_mem_ds_from_ds_by_wdpaid(datasource, wdpaid)
 
-    # Open the data source
-    orig_data_source = ogr.Open(r"D:\Yichuan\TEMP\rus_magadansky.shp")
-    # Make a copy of the layer's data source because we'll need to 
-    # modify its attributes table
-    source_ds = ogr.GetDriverByName("Memory").CopyDataSource(
-            orig_data_source, "")
+    lyr = select_feature_ds.GetLayer(0)
+    feature = lyr[0]
+    feature_geom = feature.geometry().Clone()
 
-    source_layer = source_ds.GetLayer(0)
-    source_srs = source_layer.GetSpatialRef()
-    x_min, x_max, y_min, y_max = source_layer.GetExtent()
-    print x_min, x_max, y_min, y_max
-    # Create a field in the source layer to hold the features colors
-    field_def = ogr.FieldDefn(RASTERIZE_COLOR_FIELD, ogr.OFTReal)
-    source_layer.CreateField(field_def)
-    source_layer_def = source_layer.GetLayerDefn()
-    field_index = source_layer_def.GetFieldIndex(RASTERIZE_COLOR_FIELD)
-    # Generate random values for the color field (it's here that the value
-    # of the attribute should be used, but you get the idea)
-    for feature in source_layer:
-        feature.SetField(field_index, random.randint(0, 255))
-        source_layer.SetFeature(feature)
-    # Create the destination data source
-    x_res = int((x_max - x_min) / pixel_size)
-    y_res = int((y_max - y_min) / pixel_size)
-    print x_res, y_res
-    target_ds = gdal.GetDriverByName('GTiff').Create('output_dst4.tif', 1257, 600, 3, gdal.GDT_Byte)
+    path_list = find_landcover_tile_mk2(feature_geom)
+    return path_list
 
-    target_ds.SetGeoTransform((
-            151.125, pixel_size, 0,
-            y_max, 0, -pixel_size,
-        ))
-    if source_srs:
-        # Make the target raster have the same projection as the source
-        target_ds.SetProjection(source_srs.ExportToWkt())
-    else:
-        # Source has no projection (needs GDAL >= 1.7.0 to work)
-        target_ds.SetProjection('LOCAL_CS["arbitrary"]')
-    # Rasterize
-    err = gdal.RasterizeLayer(target_ds, (3, 2, 1), source_layer,
-            burn_values=(0, 0, 0),
-            options=["ATTRIBUTE=%s" % RASTERIZE_COLOR_FIELD])
-    if err != 0:
-        raise Exception("error rasterizing layer: %s" % err)
+def _test_overlay_feature_array():
+
+    datasource = r"D:\Yichuan\TEMP\dump_jor_n.shp"
+    wdpaid = 17240
+    select_feature_ds = create_mem_ds_from_ds_by_wdpaid(datasource, wdpaid)
+
+    lyr = select_feature_ds.GetLayer(0)
+    feature = lyr[0]
+    feature_geom = feature.geometry().Clone()
+
+    path_list = find_landcover_tile(feature_geom, year = 2000)
+    print path_list
+    landcover_tile_path = path_list[0]
+
+    # run result
+    out_array, array2raster_param = overlay_feature_array(select_feature_ds, landcover_tile_path)
+
+    # convert array to raster for debugging: need to fill mask value
+    out_array_with_fill = out_array.filled(99)
+    array2raster(out_array_with_fill, 'debug_array2raster.tif', *array2raster_param)
+
+    # return result
+    return out_array
+
+def _test_array2raster(input_array, rasterOrigin):
+
+    output_raster_path = 'v_debug_rasterise_test_array.tif'
+    target_srid = 32636
+    pixelWidth = 30
+    pixelHeight = -30
+    array2raster(input_array.filled(99), output_raster_path, target_srid, rasterOrigin, pixelWidth, pixelHeight)
 
 
-def _test_rasterize(pixel_size=0.00803):
-    import random
-    RASTERIZE_COLOR_FIELD = "__color__"
+def _test_get_params():
+    datasource = r"D:\Yichuan\TEMP\dump_jor_n.shp"
 
-    # Open the data source
-    orig_data_source = ogr.Open(r"D:\Yichuan\TEMP\rus_magadansky.shp")
-    # Make a copy of the layer's data source because we'll need to 
-    # modify its attributes table
-    source_ds = ogr.GetDriverByName("Memory").CopyDataSource(
-            orig_data_source, "")
+def _test_ofc():
 
-    source_layer = source_ds.GetLayer(0)
-    source_srs = source_layer.GetSpatialRef()
-    x_min, x_max, y_min, y_max = source_layer.GetExtent()
-    print x_min, x_max, y_min, y_max
+    datasource = r"D:\Yichuan\TEMP\dump_jor_n.shp"
+    wdpaid = 17240
+    select_feature_ds = create_mem_ds_from_ds_by_wdpaid(datasource, wdpaid)
 
-    # Create the destination data source
-    x_res = int((x_max - x_min) / pixel_size)
-    y_res = int((y_max - y_min) / pixel_size)
-    print x_res, y_res
-    target_ds = gdal.GetDriverByName('GTiff').Create('output_dst4.tif', x_res, y_res, 1, gdal.GDT_Byte)
+    lyr = select_feature_ds.GetLayer(0)
+    feature = lyr[0]
+    feature_geom = feature.geometry().Clone()
 
-    target_ds.SetGeoTransform((
-            x_min, pixel_size, 0,
-            y_max, 0, -pixel_size,
-        ))
-    if source_srs:
-        # Make the target raster have the same projection as the source
-        target_ds.SetProjection(source_srs.ExportToWkt())
-    else:
-        # Source has no projection (needs GDAL >= 1.7.0 to work)
-        target_ds.SetProjection('LOCAL_CS["arbitrary"]')
-    # Rasterize
-    err = gdal.RasterizeLayer(target_ds, [1], source_layer,
-            burn_values=(1,))
+    path_list = find_landcover_tile(feature_geom, year = 2000)
+    print path_list
+    landcover_tile_path = path_list[0]
 
-    if err != 0:
-        raise Exception("error rasterizing layer: %s" % err)
-
-# _test_rasterize()
-
-# _test_create_layer_from_geom()
+    return overlay_feature_array(select_feature_ds, landcover_tile_path)
 
 
-def _test_read_write():
-    data_source = r"D:\Yichuan\BrianO\WA\clip_base\13.tif"
-    output_dst = r"D:\yichuan\temp\gdal_test_out2.tif"
-
-    # read raster
-    # get georeference info
-    ds = gdal.Open(data_source)
-
-    transform = ds.GetGeoTransform()
-    xOrigin = transform[0]
-    yOrigin = transform[3]
-    pixelWidth = transform[1]
-    pixelHeight = transform[5]
-
-    # let's read some data as array
-    rb = ds.GetRasterBand(1)
-
-    # offset of 10 units
-    x_start = xOrigin + 10 * pixelWidth
-    y_start = yOrigin + 10 * pixelHeight
-
-    print x_start, y_start
-
-    # read 100 units
-    read_units_x = 100
-    read_units_y = 100
-
-    myarray = rb.ReadAsArray(10, 10, read_units_x, read_units_y)
-
-    # output raster 
-    target_ds = gdal.GetDriverByName('GTiff').Create(output_dst, 100, 100)
-
-    # adjust georef and proj
-    target_ds.SetGeoTransform((x_start, pixelWidth, 0, y_start, 0, pixelHeight))
-    target_ds.SetProjection(ds.GetProjection())
-
-    # write raster
-    target_ds.GetRasterBand(1).WriteArray(myarray)
-    target_ds.FlushCache()
-
-    # clean up
-    ds = None
-    target_ds = None
+def _test_get_geom_from_shape():
+    datasource = r"D:\Yichuan\WDPA\WDPA_poly_Jan2014.shp"
+    return create_mem_ds_from_ds_by_wdpaid(datasource, 40603)
