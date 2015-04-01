@@ -6,7 +6,7 @@
 #-------------------------------------------------------------------------------
 import os
 import numpy as np
-from Yichuan10 import simple_time_tracker, GetUniqueValuesFromFeatureLayer_ogr
+from Yichuan10 import simple_time_tracker, time_tracker, memory_tracker, GetUniqueValuesFromFeatureLayer_ogr
 from osgeo import gdal, ogr, osr
 
 # constant
@@ -15,18 +15,45 @@ LANDCOVER_INDEX_2010 = r"D:\Yichuan\NGCC\GLC_v1\index\index10.shp"
 LANDCOVER_TILE_PATH_2000 = r"D:\Yichuan\NGCC\GLC_v1\Globecover_2000_pub"
 LANDCOVER_TILE_PATH_2010 = r"D:\Yichuan\NGCC\GLC_v1\Globecover_2010_pub"
 WH_DATASOURCE = r'D:\Yichuan\WHS_dump_SHP\whs_dump_140724.shp'
+WH_ID = 'wdpaid'
+OUTPUT_FILE = 'wh_landcover_analysis.txt'
 
 # nodata_value
 NO_DATA_VALUE = 0
 
+# @time_tracker
+# @memory_tracker
 def vectorise_conversion_matrix(a, b):
+    # NOT TO BE USED - for checking results only - high memory usage
     def conversion_matrix(a, b):
         """Create element wise concatenation"""
         return str(int(a)) + '-' + str(int(b))
 
     vfunc = np.vectorize(conversion_matrix)
-    return vfunc(a, b)
+    result = vfunc(a, b)
+    print type(result[0][0])
+    return result
 
+
+# @time_tracker
+# @memory_tracker
+def vectorise_conversion_matrix_mk2(a, b):
+    """Create element wise concatenation with mask"""
+    # more efficient than v1
+    a_str = a.astype(np.string_)
+    b_str = b.astype(np.string_)
+
+    if not np.array_equal(a_str.mask, b_str.mask):
+        raise Exception('Error: array mask different')
+
+    else:
+        a_str_ = np.char.add(a_str, '-')
+        a_str_b_str = np.char.add(a_str_, b_str)
+        a_str_b_str_with_mask = np.ma.array(a_str_b_str, mask=a_str.mask)
+        return a_str_b_str_with_mask
+
+# @time_tracker
+# @memory_tracker
 def create_mem_ds_from_ds_by_wdpaid(datasource, wdpaid):
     """polygon data source input (shp), and specify wdpaid (int) -> <vector ds in mem>"""
     # open datasource, 0 = readonly, 1=update
@@ -63,6 +90,8 @@ def create_mem_ds_from_ds_by_wdpaid(datasource, wdpaid):
     # referenced with mem_ds destroyed
     return mem_ds
 
+# @time_tracker
+# @memory_tracker
 def rasterize_feature_by_id(source_path, wdpaid, pixel_size=0.00025, output_disk=False):
     """Select a feature by ID and rasterise it using the same SR -> <raster ds in mem>
     """
@@ -112,17 +141,21 @@ def rasterize_feature_by_id(source_path, wdpaid, pixel_size=0.00025, output_disk
 
     return target_ds
 
-# def _test_rasterize_feature_by_id(source_path=r"D:\Yichuan\TEMP\dump_jor_n.shp", wdpaid=478381, pixel_size=0.00025, output_disk=True):
-#     return rasterize_feature_by_id(source_path, wdpaid, pixel_size, output_disk)
 
-def overlay_feature_array(select_feature_ds, landcover_tile_path):
-    """ <geometry object>, <tif path> -> numpy array of overlap
-    SRs of feature geom and landcover tile must be the same
+
+@time_tracker
+@memory_tracker
+def overlay_feature_array(select_feature_ds, raster_ds, flag_out_array=True):
+    """ <geometry object>, <gdal datasource>, <flag_to_output_array: default True> -> numpy array of overlap
+    if <flag_to_output_array> is specificed as False -> overlap datasource in MEM
+    the first feature in the <select_feature_ds> is used as input to intersect
     """
     from math import floor, ceil
 
     # prepare raster
-    lc_ds = gdal.Open(landcover_tile_path)
+    # lc_ds = gdal.Open(landcover_tile_path)
+
+    lc_ds = raster_ds
     lc_rb = lc_ds.GetRasterBand(1)
 
         # raster size in number of pixels
@@ -181,14 +214,11 @@ def overlay_feature_array(select_feature_ds, landcover_tile_path):
     xsize = x2 - x1
     ysize = y2 - y1
 
-    # read raster array
+    # read raster array (if the entire tile is read - it is no more than 500MB)
     ras_array = lc_rb.ReadAsArray(xoff, yoff, xsize, ysize)
 
     # debug print data type
     # print 'raster datatype', ras_array.dtype
-
-    lc_rb = None
-    lc_ds = None
 
     # read vector array
     new_gt = (
@@ -216,8 +246,6 @@ def overlay_feature_array(select_feature_ds, landcover_tile_path):
     v_array = v_target_ds.ReadAsArray()
     # print 'vector converted datatype', v_array.dtype
 
-    v_target_ds = None
-
     # combine as a masked array
     out_array = np.ma.MaskedArray(
                 ras_array,
@@ -230,9 +258,23 @@ def overlay_feature_array(select_feature_ds, landcover_tile_path):
     # get the target srid
     target_srid = int(target_sr.GetAttrValue('AUTHORITY', 1))
 
-    # the second output for debugging
+
+    # if output is raster ds of the overlap
+    if not flag_out_array:
+        return v_target_ds
+
+    # if output is array
+        # free memory in case
+    lc_rb = None
+    lc_ds = None
+    v_target_ds = None
+
+        # the second output for debugging
+        # print 'DEBUG:', 'the size of array in MB', out_array.nbytes/1024/1024
     return out_array, [target_srid, (new_gt[0], new_gt[3]), new_gt[1], new_gt[5]]
 
+# @time_tracker
+# @memory_tracker
 def analyse_categorical(input_array_with_mask):
     """return the count of each category in the masked array"""
     from collections import Counter
@@ -241,15 +283,18 @@ def analyse_categorical(input_array_with_mask):
     result = input_array_with_mask.compressed()
     return Counter(result)
 
+# @time_tracker
+# @memory_tracker
 def analyse_categorical_conversion(array1, array2):
     """Conversion matrix"""
     from collections import Counter
 
-    out_array = vectorise_conversion_matrix(array1, array2)
+    out_array = vectorise_conversion_matrix_mk2(array1, array2)
     result = out_array.compressed()
     return Counter(result)
 
-
+# @time_tracker
+# @memory_tracker
 def array2raster(input_array, output_raster_path, target_srid, rasterOrigin, pixelWidth, pixelHeight):
     """
     Utility for checking output array
@@ -276,6 +321,7 @@ def array2raster(input_array, output_raster_path, target_srid, rasterOrigin, pix
     outRaster = None
 
 def find_landcover_tile(feature_geom, year):
+    # DO NOT USE THIS function
     """ <geometry object>, <landcover shapefile index> -> path
     SRs must all be WGS84
     """
@@ -316,18 +362,84 @@ def find_landcover_tile_mk2(feature_geom):
     tile_id_list = [feature.GetField('idx') for feature in index_layer]
 
     for tile_id in tile_id_list:
-        path_2000 = LANDCOVER_TILE_PATH_2000 + os.sep + tile_id + '_' + '2000' + 'LC030' + os.sep + tile_id + '_' + '2000' + 'LC030.tif'
-        path_2010 = LANDCOVER_TILE_PATH_2010 + os.sep + tile_id + '_' + '2010' + 'LC030' + os.sep + tile_id + '_' + '2010' + 'LC030.tif'
+        path_2000 = LANDCOVER_TILE_PATH_2000 + os.sep + tile_id + '_' + '2000' + 'LC030' + os.sep + tile_id + '_' + '2000'
+        path_2000_shp = path_2000 + '.shp'
+        path_2000_tif = path_2000 + 'LC030.tif'
 
-        if os.path.exists(path_2000) and os.path.exists(path_2010):
-            path_list.append([path_2000, path_2010])
+        path_2010 = LANDCOVER_TILE_PATH_2010 + os.sep + tile_id + '_' + '2010' + 'LC030' + os.sep + tile_id + '_' + '2010'
+        path_2010_shp = path_2010 + '.shp'
+        path_2010_tif = path_2010 + 'LC030.tif'
+
+        if os.path.exists(path_2000_tif) and os.path.exists(path_2010_tif):
+            path_list.append([path_2000_shp, path_2000_tif, path_2010_shp, path_2010_tif])
         else:
             print 'Warning:', path_2000, 'or', path_2010, 'doesn\'t exist'
 
     return path_list
 
-@simple_time_tracker
+def get_all_wh_id():
+    inputFc = WH_DATASOURCE
+    inputField = WH_ID
+    return GetUniqueValuesFromFeatureLayer_ogr(inputFc, inputField)
+
+def get_fc_extent(fc_datasource):
+    source_ds = ogr.Open(fc_datasource, 0)
+    # for shapefile, the only layer; if filegdb, the first feature class within FGDB
+    source_layer = source_ds.GetLayer(0)
+
+    # spatial reference
+    source_srs = source_layer.GetSpatialRef()
+
+    # it should contain only one feature
+    layer_extent = source_layer.GetExtent()
+    xmin = layer_extent[0]
+    xmax = layer_extent[1]
+    ymin = layer_extent[2]
+    ymax = layer_extent[3]
+
+    # create geometry of the extent: anti-clock wise
+    ring = ogr.Geometry(ogr.wkbLinearRing)
+    poly = ogr.Geometry(ogr.wkbPolygon)
+
+    cell_density = 10000
+
+    # need to densify for correct projection
+    for x in np.arange(xmin, xmax, (xmax-xmin)/cell_density):
+        ring.AddPoint(x, ymin)
+
+    for y in np.arange(ymin, ymax, (ymax-ymin)/cell_density):
+        ring.AddPoint(xmax, y)
+
+    for x in np.arange(xmax, xmin, -(xmax-xmin)/cell_density):
+        ring.AddPoint(x, ymax)
+
+    for y in np.arange(ymax, ymin, -(ymax-ymin)/cell_density):
+        ring.AddPoint(xmin, y)
+
+    # end point
+    ring.AddPoint(xmin,ymin)
+
+    poly.AddGeometry(ring)
+
+    # create a new vector in memory
+    mem_driver = ogr.GetDriverByName('Memory')
+
+    # # DEBUG
+    # mem_driver = ogr.GetDriverByName('ESRI Shapefile')
+
+    mem_ds = mem_driver.CreateDataSource('temp_mem_extent')
+    mem_layer = mem_ds.CreateLayer(name = 'temp_mem_extent_lyr', srs=source_srs, geom_type=ogr.wkbPolygon)
+    mem_feature = ogr.Feature(feature_def=mem_layer.GetLayerDefn())
+
+    mem_feature.SetGeometry(poly)
+    mem_layer.CreateFeature(mem_feature)
+
+    # one must return mem_ds, as mem_layer cannot be 
+    # referenced with mem_ds destroyed
+    return mem_ds
+
 def process_each_wh_site(wdpaid):
+    print 'Processing ID:', wdpaid
     # for each WH site by id 
     wh_ds_mem = create_mem_ds_from_ds_by_wdpaid(WH_DATASOURCE, wdpaid)
 
@@ -336,26 +448,46 @@ def process_each_wh_site(wdpaid):
     feature = lyr[0]
     feature_geom = feature.geometry().Clone()
 
-    # get paths of 2000 and 2010
+    # get paths of 2000 and 2010 tiles
     path_list = find_landcover_tile_mk2(feature_geom)
 
     # debug
-    for each in path_list:
-        print each[0] # 2000
+    # for each in path_list:
+    #     print each[0] # 2000
 
     # main
     counter = 0
     result_list = list()
-    for path_2000, path_2010 in path_list:
+    for path_2000_shp, path_2000_tif, path_2010_shp, path_2010_tif in path_list:
         counter += 1
 
-        # raster - vector overlap as numpy array
-        out_array_2000, array2raster_param_2000 = overlay_feature_array(wh_ds_mem, path_2000)
-        out_array_2010, array2raster_param_2010 = overlay_feature_array(wh_ds_mem, path_2010)
+        # get data sources
+        tile_2000_ds = gdal.Open(path_2000_tif)
+        tile_2010_ds = gdal.Open(path_2010_tif)
 
-        #
-        # out_array_2000.astype(np.uint8)
-        # out_array_2010.astype(np.uint8)
+        # make sure overlapping tile boundaries are reconciled
+            # get extent using index shapefile
+        tile_extent_2000_ds = get_fc_extent(path_2000_shp)
+        tile_extent_2010_ds = get_fc_extent(path_2010_shp)
+
+            # get landcover tile only within the bound of the above index shapefile
+        clean_tiles_2000_ds = overlay_feature_array(tile_extent_2000_ds, tile_2000_ds, False)
+        clean_tiles_2010_ds = overlay_feature_array(tile_extent_2010_ds, tile_2010_ds, False)        
+
+        # raster - vector overlap as numpy array
+        out_array_2000, array2raster_param_2000 = overlay_feature_array(wh_ds_mem, clean_tiles_2000_ds)
+        out_array_2010, array2raster_param_2010 = overlay_feature_array(wh_ds_mem, clean_tiles_2010_ds)
+
+        clean_tiles_2000_ds = None
+        clean_tiles_2010_ds = None
+
+        # reconcile mask so that stats match: use the maximum extent
+        combined_mask = np.logical_and(out_array_2000.mask, out_array_2010.mask)
+        out_array_2000 = np.ma.array(out_array_2000.data, mask = combined_mask)
+        out_array_2010 = np.ma.array(out_array_2010.data, mask = combined_mask)
+
+
+    # return out_array_2000, out_array_2010
 
         # analyse arrays
         stats_2000 = analyse_categorical(out_array_2000)
@@ -378,7 +510,8 @@ def process_each_wh_site(wdpaid):
 
     return result_list
 
-def write_each_wh_result(result_list, output):
+
+def write_each_wh_result(result_list, output=OUTPUT_FILE):
     if not os.path.exists(output):
         f = open(output, 'w')
         f.write('wdapaid,year,class,pixels\n')
@@ -393,6 +526,41 @@ def write_each_wh_result(result_list, output):
 
 
 # -------------- TEST suites----------------
+
+def _test_overlay_feature_ds(wdpaid = 2577):
+    datasource = WH_DATASOURCE
+    select_feature_ds = create_mem_ds_from_ds_by_wdpaid(datasource, wdpaid)
+
+    lyr = select_feature_ds.GetLayer(0)
+    feature = lyr[0]
+    feature_geom = feature.geometry().Clone()
+
+    path_list = find_landcover_tile_mk2(feature_geom)
+    print path_list
+
+    path_2000_shp, path_2000_tif, path_2010_shp, path_2010_tif = path_list[0]
+
+    landcover_tile_path1 = path_2000_tif
+
+    print landcover_tile_path1
+    # run result
+    fc_extent = get_fc_extent(path_2000_shp)
+
+    ras = gdal.Open(landcover_tile_path1)
+
+    out_ds1, array2raster_param1 = overlay_feature_array(fc_extent, ras)
+
+    # return result
+    array2raster(out_ds1.mask, 'debug_mask3.tif', *array2raster_param1)
+
+def _test_process_each_wh_site():
+    wdpaid = 2577
+    return process_each_wh_site(wdpaid)
+
+def _test_performance():
+    process_each_wh_site(900881)
+
+
 def _test_find_tiles():
     datasource = r"D:\Yichuan\TEMP\dump_jor_n.shp"
     wdpaid = 17240
@@ -405,29 +573,31 @@ def _test_find_tiles():
     path_list = find_landcover_tile_mk2(feature_geom)
     return path_list
 
-def _test_overlay_feature_array():
-
-    datasource = r"D:\Yichuan\TEMP\dump_jor_n.shp"
-    wdpaid = 17240
+def _test_overlay_feature_array(wdpaid = 2575):
+    datasource = WH_DATASOURCE
     select_feature_ds = create_mem_ds_from_ds_by_wdpaid(datasource, wdpaid)
 
     lyr = select_feature_ds.GetLayer(0)
     feature = lyr[0]
     feature_geom = feature.geometry().Clone()
 
-    path_list = find_landcover_tile(feature_geom, year = 2000)
+    path_list = find_landcover_tile_mk2(feature_geom)
     print path_list
-    landcover_tile_path = path_list[0]
 
+    path_pair = path_list[0]
+
+    landcover_tile_path1 = path_pair[0]
+    landcover_tile_path2 = path_pair[1]
+
+    print landcover_tile_path1
     # run result
-    out_array, array2raster_param = overlay_feature_array(select_feature_ds, landcover_tile_path)
+    out_array1, array2raster_param1 = overlay_feature_array(select_feature_ds, landcover_tile_path1)
+    out_array2, array2raster_param2 = overlay_feature_array(select_feature_ds, landcover_tile_path2)
 
-    # convert array to raster for debugging: need to fill mask value
-    out_array_with_fill = out_array.filled(99)
-    array2raster(out_array_with_fill, 'debug_array2raster.tif', *array2raster_param)
-
+    array2raster(out_array1.mask, 'debug_mask1.tif', *array2raster_param1)
+    array2raster(out_array2.mask, 'debug_mask2.tif', *array2raster_param2)
     # return result
-    return out_array
+    return out_array1, out_array2
 
 def _test_array2raster(input_array, rasterOrigin):
 
