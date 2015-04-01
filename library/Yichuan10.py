@@ -2,7 +2,7 @@
 
 # this library contains all commonly used geoprocessing functions
 
-import os, sys, arcpy, time, shutil, string
+import os, sys, arcpy, time, shutil, string, psutil
 import datetime as dtm
 from datetime import datetime
 
@@ -35,6 +35,22 @@ def util_printlist_duplicate(flist):
             print each == flist[length]
             length -= 1
 
+class memory_tracker(object):
+    """track memory usage in current process"""
+    def __init__(self, f):
+        self.f = f
+        self.__name__ = f.__name__
+
+    def __call__(self, *args):
+        # get current process
+        p = psutil.Process(os.getpid())
+        print "[MEMTRACK]Current process memory (MB):", p.memory_info()[0]/1024/1024.0
+        print "[MEMTRACK]Current function:", self.__name__
+        result = self.f(*args)
+        print "[MEMTRACK]Current process memory (MB):", p.memory_info()[0]/1024/1024.0
+        return result
+
+
 class time_tracker(object):
     """track number of function calls, cost of time, and total time"""
     def __init__(self, f):
@@ -58,9 +74,9 @@ class time_tracker(object):
 
         # time tracker output
         # if self.counter % 50 == 0:
-        print 'Function', '\''+ self.__name__ + '\'', 'called', self.counter, 'times'
-        print 'Time spent:,', '{:.f}'.format(spent_time), 'ms'
-        print 'Total time spent:', '{:.2f}'.format(self.total_time), 'ms'
+        print '[TIMETRACK]Function', '\''+ self.__name__ + '\'', 'called', self.counter, 'times'
+        print '[TIMETRACK]Time spent:,', '{:.2f}'.format(spent_time), 'ms'
+        print '[TIMETRACK]Total time spent:', '{:.2f}'.format(self.total_time), 'ms'
 
         return result
 
@@ -81,7 +97,7 @@ class simple_time_tracker(object):
         # in ms
         spent_time = (end_time - start_time) * 1000
 
-        print 'Total time spent:', '{:.2f}'.format(spent_time), 'ms'
+        print '[TIMETRACK]Time spent:', '{:.2f}'.format(spent_time), 'ms'
 
         return result
 
@@ -146,6 +162,28 @@ def GetFieldValueByID_mk2(featurelayer, input_id, value_field="SHAPE@", id_field
         print "no value found"
         return None
 
+def GetFieldValueByID_ogr(featurelayer, input_id, value_field="SHAPE@", id_field="wdpaid"):
+    # waiting to be done
+    # print (DATA_IDFIELD, value_field)
+
+    if type(input_id) is int:
+        whereclause = '\"' + id_field + '\" = ' + str(input_id)
+    elif type(input_id) is str:
+        whereclause = '\"' + id_field + '\" = ' + '\'' + str(input_id) + '\''
+    else:
+        print "Invalid ID type"
+        return None
+
+    # with arcpy.da.SearchCursor(featurelayer, (id_field, value_field), whereclause) as cursor:
+    #     for row in cursor:
+    # #        print row
+    #         if row[0] == input_id:
+    #             return row[1]
+
+    #     print "no value found"
+    #     return None
+
+
 def createSpatialRefBySRID(srid):
     """<srid> --> SR object"""
     sr = arcpy.SpatialReference()
@@ -187,6 +225,18 @@ def GetUniqueValuesFromFeatureLayer_mk2(inputFc, inputField):
             pySet.add(row[0])
 
     return list(pySet)
+
+def GetUniqueValuesFromFeatureLayer_ogr(inputFc, inputField):
+    """<string>, <string> -> pythonList
+    can be both feature class or feature layer"""
+    from osgeo import ogr
+    ds = ogr.Open(inputFc, 0)
+    dl = ds.GetLayer()
+
+    field_value_list = [feature.GetField(inputField) for feature in dl]
+
+    return list(set(field_value_list))
+
 
 def GetUniqueLookupFromFeatureLayer_mk2(inputFc, inputField_key, inputField_value):
     """<string>, <string>, <string> -> pythondict dict[key] = set()
