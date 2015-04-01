@@ -189,6 +189,8 @@ def main():
     # terminate worker processes
     for p in p_workers:
         q_input.put('STOP')
+
+    for p in p_workers:
         p.join()
 
     # terminate writer - signal
