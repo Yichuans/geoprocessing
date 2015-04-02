@@ -7,7 +7,7 @@ from landcover_analysis import process_each_wh_site, write_each_wh_result, get_a
 WORKER = multiprocessing.cpu_count() - 2
 
 # specify num of workers
-WORKER = 4
+WORKER = 2
 
 # -------------- NEED MODIFICATION ---------------
 def job(job_id):
@@ -62,7 +62,7 @@ def worker(q, q_out):
 
 def main():
     print 'Total number of workers:', WORKER
-    # get queue
+    # get queue for writer
     q_out = multiprocessing.Queue()
 
     # Add queue of a list of ids to process
@@ -71,7 +71,7 @@ def main():
     # setup and run worker processes
     p_workers = list()
     for i in range(WORKER):
-        print 'Starting worker process:', i
+        print 'Starting worker process:', i+1
         p = multiprocessing.Process(target=worker, args=(q, q_out))
         p_workers.append(p)
         

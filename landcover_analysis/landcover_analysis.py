@@ -6,8 +6,12 @@
 #-------------------------------------------------------------------------------
 import os
 import numpy as np
+import logging
 from Yichuan10 import simple_time_tracker, time_tracker, memory_tracker, GetUniqueValuesFromFeatureLayer_ogr
 from osgeo import gdal, ogr, osr
+
+# logging setup
+logging.basicConfig(filename='log.txt', level=logging.DEBUG)
 
 # constant
 LANDCOVER_INDEX_2000 = r"D:\Yichuan\NGCC\GLC_v1\index\index00.shp"
@@ -35,8 +39,8 @@ def vectorise_conversion_matrix(a, b):
     return result
 
 
-# @time_tracker
-# @memory_tracker
+@time_tracker
+@memory_tracker
 def vectorise_conversion_matrix_mk2(a, b):
     """Create element wise concatenation with mask"""
     # more efficient than v1
@@ -85,6 +89,9 @@ def create_mem_ds_from_ds_by_wdpaid(datasource, wdpaid):
     geom = a_feature.GetGeometryRef()
     mem_feature.SetGeometry(geom.Clone())
     mem_layer.CreateFeature(mem_feature)
+
+    # clean up
+    source_ds = None
 
     # one must return mem_ds, as mem_layer cannot be 
     # referenced with mem_ds destroyed
@@ -156,6 +163,14 @@ def overlay_feature_array(select_feature_ds, raster_ds, flag_out_array=True):
     # lc_ds = gdal.Open(landcover_tile_path)
 
     lc_ds = raster_ds
+
+    if lc_ds is None:
+        # no raster input and no output is needed
+        if flag_out_array:
+            return None, None
+        else:
+            return None
+
     lc_rb = lc_ds.GetRasterBand(1)
 
         # raster size in number of pixels
@@ -190,6 +205,7 @@ def overlay_feature_array(select_feature_ds, raster_ds, flag_out_array=True):
 
     # if boundary don't overlap return None
     if xmin > xOrigin + pixelWidth*lc_rsize[0] or xmax < xOrigin or ymin > yOrigin or ymax < yOrigin + pixelHeight*lc_rsize[1]:
+        print "Info: no overlap between bounding boxes"
         return None
 
     # calculate offsets to read array
@@ -214,7 +230,7 @@ def overlay_feature_array(select_feature_ds, raster_ds, flag_out_array=True):
     xsize = x2 - x1
     ysize = y2 - y1
 
-    # read raster array (if the entire tile is read - it is no more than 500MB)
+    # read raster array (safe to read the entire tile - it is no more than 500MB)
     ras_array = lc_rb.ReadAsArray(xoff, yoff, xsize, ysize)
 
     # debug print data type
@@ -257,21 +273,58 @@ def overlay_feature_array(select_feature_ds, raster_ds, flag_out_array=True):
 
     # get the target srid
     target_srid = int(target_sr.GetAttrValue('AUTHORITY', 1))
+    array_params = [target_srid, (new_gt[0], new_gt[3]), new_gt[1], new_gt[5]]
 
 
     # if output is raster ds of the overlap
     if not flag_out_array:
-        return v_target_ds
+        # output in memory
+        array_params.append(True)
+
+        return array2raster(out_array, 'MEM', *array_params)
 
     # if output is array
-        # free memory in case
+        # free memory
     lc_rb = None
     lc_ds = None
     v_target_ds = None
 
         # the second output for debugging
         # print 'DEBUG:', 'the size of array in MB', out_array.nbytes/1024/1024
-    return out_array, [target_srid, (new_gt[0], new_gt[3]), new_gt[1], new_gt[5]]
+    return out_array, array_params
+
+# @time_tracker
+# @memory_tracker
+def array2raster(input_array, output_raster_path, target_srid, rasterOrigin, pixelWidth, pixelHeight, flag_in_mem = False):
+    """
+    Utility for checking output array
+    <input_array: make sure it is not a masked array>, <output raster in Gtiff>, <srid>, <upper left in tupple>
+    <x cell size>, <y cell size, negative>
+    """
+
+    cols = input_array.shape[1]
+    rows = input_array.shape[0]
+    originX = rasterOrigin[0]
+    originY = rasterOrigin[1]
+
+    if flag_in_mem == True:
+        driver = gdal.GetDriverByName('MEM')
+    else:
+        driver = gdal.GetDriverByName('GTiff')
+
+    outRaster = driver.Create(output_raster_path, cols, rows, 1, gdal.GDT_Byte)
+    outRaster.SetGeoTransform((originX, pixelWidth, 0, originY, 0, pixelHeight))
+    outband = outRaster.GetRasterBand(1)
+    outband.WriteArray(input_array)
+    outRaster_sr = osr.SpatialReference()
+    outRaster_sr.ImportFromEPSG(target_srid)
+    outRaster.SetProjection(outRaster_sr.ExportToWkt())
+    outband.FlushCache()
+
+    # outband = None
+    # outRaster = None
+
+    return outRaster
 
 # @time_tracker
 # @memory_tracker
@@ -292,33 +345,6 @@ def analyse_categorical_conversion(array1, array2):
     out_array = vectorise_conversion_matrix_mk2(array1, array2)
     result = out_array.compressed()
     return Counter(result)
-
-# @time_tracker
-# @memory_tracker
-def array2raster(input_array, output_raster_path, target_srid, rasterOrigin, pixelWidth, pixelHeight):
-    """
-    Utility for checking output array
-    <input_array: make sure it is not a masked array>, <output raster in Gtiff>, <srid>, <upper left in tupple>
-    <x cell size>, <y cell size, negative>
-    """
-
-    cols = input_array.shape[1]
-    rows = input_array.shape[0]
-    originX = rasterOrigin[0]
-    originY = rasterOrigin[1]
-
-    driver = gdal.GetDriverByName('GTiff')
-    outRaster = driver.Create(output_raster_path, cols, rows, 1, gdal.GDT_Byte)
-    outRaster.SetGeoTransform((originX, pixelWidth, 0, originY, 0, pixelHeight))
-    outband = outRaster.GetRasterBand(1)
-    outband.WriteArray(input_array)
-    outRaster_sr = osr.SpatialReference()
-    outRaster_sr.ImportFromEPSG(target_srid)
-    outRaster.SetProjection(outRaster_sr.ExportToWkt())
-    outband.FlushCache()
-
-    outband = None
-    outRaster = None
 
 def find_landcover_tile(feature_geom, year):
     # DO NOT USE THIS function
@@ -438,6 +464,14 @@ def get_fc_extent(fc_datasource):
     # referenced with mem_ds destroyed
     return mem_ds
 
+def adjust_shape(input_array, newshape):
+    """split input array according to newshape -> upper left array after split"""
+
+    output_array = np.vsplit(input_array, (newshape[0],))[0]
+    output_array = np.hsplit(output_array, (newshape[1],))[0]
+
+    return output_array
+
 def process_each_wh_site(wdpaid):
     print 'Processing ID:', wdpaid
     # for each WH site by id 
@@ -452,8 +486,8 @@ def process_each_wh_site(wdpaid):
     path_list = find_landcover_tile_mk2(feature_geom)
 
     # debug
-    # for each in path_list:
-    #     print each[0] # 2000
+    for each in path_list:
+        print each # 2000
 
     # main
     counter = 0
@@ -465,27 +499,52 @@ def process_each_wh_site(wdpaid):
         tile_2000_ds = gdal.Open(path_2000_tif)
         tile_2010_ds = gdal.Open(path_2010_tif)
 
-        # make sure overlapping tile boundaries are reconciled
+        # make sure overlapping tile boundaries are reconciled (input land cover data overlap along tile boundaries)
             # get extent using index shapefile
         tile_extent_2000_ds = get_fc_extent(path_2000_shp)
         tile_extent_2010_ds = get_fc_extent(path_2010_shp)
 
-            # get landcover tile only within the bound of the above index shapefile
+            # get landcover tile within the bound of the above index shapefile
         clean_tiles_2000_ds = overlay_feature_array(tile_extent_2000_ds, tile_2000_ds, False)
-        clean_tiles_2010_ds = overlay_feature_array(tile_extent_2010_ds, tile_2010_ds, False)        
+        clean_tiles_2010_ds = overlay_feature_array(tile_extent_2010_ds, tile_2010_ds, False)
+
 
         # raster - vector overlap as numpy array
         out_array_2000, array2raster_param_2000 = overlay_feature_array(wh_ds_mem, clean_tiles_2000_ds)
         out_array_2010, array2raster_param_2010 = overlay_feature_array(wh_ds_mem, clean_tiles_2010_ds)
 
-        clean_tiles_2000_ds = None
-        clean_tiles_2010_ds = None
+            # if no overlap is found, skip
+        if out_array_2010 is None or out_array_2010 is None:
+            continue
+
+            # release memory
+        # tile_2000_ds = None
+        # tile_2010_ds = None
+        # clean_tiles_2000_ds = None
+        # clean_tiles_2010_ds = None
+
+        # reconcile array shape difference (input land cover data do not snap)
+        if out_array_2000.shape != out_array_2010.shape:
+            print 'Warning: inconsistent output array shape for ID ', wdpaid
+            print 'Warning: automatically split using the smaller array shape'
+
+            # if shape different, choose the smaller
+            shape_rows = min(out_array_2000.shape[0], out_array_2010.shape[0])
+            shape_cols = min(out_array_2000.shape[1], out_array_2010.shape[1])
+            newshape = (shape_rows, shape_cols)
+
+            # DEBUG
+            msg = """[Warning] ID %s: original shape %s and %s, new shape %s
+            """%(wdpaid, out_array_2000.shape, out_array_2010.shape, newshape)
+            logging.warning(msg)
+
+            out_array_2000 = adjust_shape(out_array_2000, newshape = newshape)
+            out_array_2010 = adjust_shape(out_array_2000, newshape = newshape)
 
         # reconcile mask so that stats match: use the maximum extent
         combined_mask = np.logical_and(out_array_2000.mask, out_array_2010.mask)
         out_array_2000 = np.ma.array(out_array_2000.data, mask = combined_mask)
         out_array_2010 = np.ma.array(out_array_2010.data, mask = combined_mask)
-
 
     # return out_array_2000, out_array_2010
 
@@ -499,9 +558,18 @@ def process_each_wh_site(wdpaid):
         # out_array_2010_with_fill = out_array_2010.filled(99)
         # debug_tif_path_2000 = str(wdpaid) + '_2000_' + str(counter) + '.tif'
         # debug_tif_path_2010 = str(wdpaid) + '_2010_' + str(counter) + '.tif'
-        # array2raster(out_array_2000_with_fill, debug_tif_path_2000, *array2raster_param_2000)
-        # array2raster(out_array_2010_with_fill, debug_tif_path_2010, *array2raster_param_2010)
+
+        #     # must handle return raster object so that they could be destroyed
+        # outras_2000 = array2raster(out_array_2000_with_fill, debug_tif_path_2000, *array2raster_param_2000)
+        # outras_2010 = array2raster(out_array_2010_with_fill, debug_tif_path_2010, *array2raster_param_2010)
+
+        #     # Free memory
+        # outras_2000 = None
+        # outras_2010 = None
+
+        # print debug_tif_path_2000
         # # debug: ends ===================================
+
 
         # format
         result_list.extend([[wdpaid, '2000', str(each_class), stats_2000[each_class]] for each_class in stats_2000])
@@ -527,6 +595,10 @@ def write_each_wh_result(result_list, output=OUTPUT_FILE):
 
 # -------------- TEST suites----------------
 
+def _test_process_each_wh_site(wdpaid = 2577):
+    return process_each_wh_site(wdpaid)
+
+
 def _test_overlay_feature_ds(wdpaid = 2577):
     datasource = WH_DATASOURCE
     select_feature_ds = create_mem_ds_from_ds_by_wdpaid(datasource, wdpaid)
@@ -551,11 +623,9 @@ def _test_overlay_feature_ds(wdpaid = 2577):
     out_ds1, array2raster_param1 = overlay_feature_array(fc_extent, ras)
 
     # return result
-    array2raster(out_ds1.mask, 'debug_mask3.tif', *array2raster_param1)
+    array2raster(out_ds1.mask, 'debug_mask4.tif', *array2raster_param1)
 
-def _test_process_each_wh_site():
-    wdpaid = 2577
-    return process_each_wh_site(wdpaid)
+
 
 def _test_performance():
     process_each_wh_site(900881)
