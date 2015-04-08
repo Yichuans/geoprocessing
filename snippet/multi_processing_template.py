@@ -5,6 +5,9 @@ import os, sys
 # the number of cores used - the following ensures there is one core remaining for other tasks
 WORKER = multiprocessing.cpu_count() - 2
 
+# specify num of workers
+# WORKER = 4
+
 
 # -------------- NEED MODIFICATION ---------------
 def job(job_id):
@@ -32,8 +35,6 @@ def process_result(result):
         f.write('\n')
 
     pass
-
-
 
 # --------------- TEMPLATE -----------------------
 def worker_writer(q_out):
