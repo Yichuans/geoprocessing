@@ -44,10 +44,10 @@ class memory_tracker(object):
     def __call__(self, *args):
         # get current process
         p = psutil.Process(os.getpid())
-        print "[MEMTRACK]Current process memory (MB):", p.memory_info()[0]/1024/1024.0
-        print "[MEMTRACK]Current function:", self.__name__
+        print time.ctime(), "[MEM]Current process memory (MB):", p.memory_info()[0]/1024/1024.0
+        print time.ctime(), "[MEM]Current function:", self.__name__
         result = self.f(*args)
-        print "[MEMTRACK]Current process memory (MB):", p.memory_info()[0]/1024/1024.0
+        print time.ctime(), "[MEM]Current process memory (MB):", p.memory_info()[0]/1024/1024.0
         return result
 
 
@@ -60,7 +60,7 @@ class time_tracker(object):
         self.total_time = 0
         self.__name__ = f.__name__
     def __call__(self, *args):
-        from time import time
+        from time import time, ctime
         start_time = time()
 
         # call function
@@ -74,9 +74,9 @@ class time_tracker(object):
 
         # time tracker output
         # if self.counter % 50 == 0:
-        print '[TIMETRACK]Function', '\''+ self.__name__ + '\'', 'called', self.counter, 'times'
-        print '[TIMETRACK]Time spent:,', '{:.2f}'.format(spent_time), 'ms'
-        print '[TIMETRACK]Total time spent:', '{:.2f}'.format(self.total_time), 'ms'
+        print ctime(),'[TIME]Function', '\''+ self.__name__ + '\'', 'called', self.counter, 'times'
+        print ctime(),'[TIME]Time spent:,', '{:.2f}'.format(spent_time), 'ms'
+        print ctime(),'[TIME]Total time spent:', '{:.2f}'.format(self.total_time), 'ms'
 
         return result
 
@@ -87,7 +87,7 @@ class simple_time_tracker(object):
         self.f = f
 
     def __call__(self, *args):
-        from time import time
+        from time import time, ctime
         start_time = time()
 
         # call function
@@ -97,7 +97,7 @@ class simple_time_tracker(object):
         # in ms
         spent_time = (end_time - start_time) * 1000
 
-        print '[TIMETRACK]Time spent:', '{:.2f}'.format(spent_time), 'ms'
+        print ctime(),'[TIME]Time spent:', '{:.2f}'.format(spent_time), 'ms'
 
         return result
 
