@@ -1,19 +1,26 @@
+#-------------------------------------------------------------------------------
+# Name:        Land cover analysis MP wrapper
+# Purpose:     A wrapper to make use of multiple cores
+# Author:      Yichuan Shi (yichuan.shi@unep-wcmc.org)
+# Created:     2015/04/07
+#-------------------------------------------------------------------------------
+
 import multiprocessing
 import time
 import os, sys
-from landcover_analysis import process_each_wh_site, write_each_wh_result, get_all_wh_id
+from landcover_analysis import process_each_wh_site_mk2, write_each_wh_result, get_all_wh_id
 
 # the number of cores used - the following ensures there is one core remaining for other tasks
 WORKER = multiprocessing.cpu_count() - 2
 
 # specify num of workers
-WORKER = 2
+WORKER = 1
 
 # -------------- NEED MODIFICATION ---------------
 def job(job_id):
     # ADD: the main work process, 
     # the result should catch errors
-    result = process_each_wh_site(job_id)
+    result = process_each_wh_site_mk2(job_id)
 
     return result
 
@@ -22,6 +29,7 @@ def get_queue():
     q = multiprocessing.Queue()
     
     ids = get_all_wh_id()
+    ids.sort()
     print 'Jobs to process:', len(ids)
 
     # ADD: queue logic here
