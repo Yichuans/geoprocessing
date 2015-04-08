@@ -4,9 +4,9 @@
 # Author:      Yichuan Shi (yichuan.shi@unep-wcmc.org)
 # Created:     2015/03/19
 #-------------------------------------------------------------------------------
-import os
+import os, sys
 import numpy as np
-import logging
+import logging, time
 from Yichuan10 import simple_time_tracker, time_tracker, memory_tracker, GetUniqueValuesFromFeatureLayer_ogr
 from osgeo import gdal, ogr, osr
 
@@ -39,8 +39,8 @@ def vectorise_conversion_matrix(a, b):
     return result
 
 
-@time_tracker
-@memory_tracker
+# @time_tracker
+# @memory_tracker
 def vectorise_conversion_matrix_mk2(a, b):
     """Create element wise concatenation with mask"""
     # more efficient than v1
@@ -150,8 +150,8 @@ def rasterize_feature_by_id(source_path, wdpaid, pixel_size=0.00025, output_disk
 
 
 
-@time_tracker
-@memory_tracker
+# @time_tracker
+# @memory_tracker
 def overlay_feature_array(select_feature_ds, raster_ds, flag_out_array=True):
     """ <geometry object>, <gdal datasource>, <flag_to_output_array: default True> -> numpy array of overlap
     if <flag_to_output_array> is specificed as False -> overlap datasource in MEM
@@ -191,8 +191,13 @@ def overlay_feature_array(select_feature_ds, raster_ds, flag_out_array=True):
     # prepare vector
     fc_ds = select_feature_ds
     v_layer = fc_ds.GetLayer()
-
     v_feature = v_layer.GetNextFeature()
+
+    # # debug
+    # print fc_ds
+    # print v_layer
+    # print v_feature
+
     v_geom = v_feature.geometry().Clone()
 
     v_sr = v_layer.GetSpatialRef()
@@ -206,7 +211,10 @@ def overlay_feature_array(select_feature_ds, raster_ds, flag_out_array=True):
     # if boundary don't overlap return None
     if xmin > xOrigin + pixelWidth*lc_rsize[0] or xmax < xOrigin or ymin > yOrigin or ymax < yOrigin + pixelHeight*lc_rsize[1]:
         print "Info: no overlap between bounding boxes"
-        return None
+        if flag_out_array:
+            return None, None
+        else:
+            return None
 
     # calculate offsets to read array
     x1 = int(floor((xmin - xOrigin)/pixelWidth))
@@ -472,7 +480,93 @@ def adjust_shape(input_array, newshape):
 
     return output_array
 
-def process_each_wh_site(wdpaid):
+
+def process_each_wh_site_tile(wdpaid, path_list):
+    
+    # by tile
+    result_list = list()
+
+    path_2000_shp = path_list[0]
+    path_2000_tif = path_list[1]
+    path_2010_shp = path_list[2]
+    path_2010_tif = path_list[3]
+
+    try:
+        # get data sources
+        tile_2000_ds = gdal.Open(path_2000_tif)
+        tile_2010_ds = gdal.Open(path_2010_tif)
+
+        # make sure overlapping tile boundaries are reconciled (input land cover data overlap along tile boundaries)
+            # get extent using index shapefile
+        tile_extent_2000_ds = get_fc_extent(path_2000_shp)
+        tile_extent_2010_ds = get_fc_extent(path_2010_shp)
+
+
+            # get landcover tile within the bound of the above index shapefile
+        clean_tiles_2000_ds = overlay_feature_array(tile_extent_2000_ds, tile_2000_ds, False)
+        clean_tiles_2010_ds = overlay_feature_array(tile_extent_2010_ds, tile_2010_ds, False)
+
+        # raster - vector overlap as numpy array
+            # two duplicate datasource to avoid next feature method returns None
+        wh_ds_mem1 = create_mem_ds_from_ds_by_wdpaid(WH_DATASOURCE, wdpaid)
+        wh_ds_mem2 = create_mem_ds_from_ds_by_wdpaid(WH_DATASOURCE, wdpaid)
+
+        out_array_2000, array2raster_param_2000 = overlay_feature_array(wh_ds_mem1, clean_tiles_2000_ds, True)
+        out_array_2010, array2raster_param_2010 = overlay_feature_array(wh_ds_mem2, clean_tiles_2010_ds, True)
+
+            # if no overlap is found, skip
+        if out_array_2010 is None or out_array_2010 is None:
+            return result_list
+
+        # reconcile array shape difference (input land cover data do not snap)
+        if out_array_2000.shape != out_array_2010.shape:
+            msg = """%s; %s; inconsistent output array shape. Automatically split using the smaller array shape."""%(time.ctime(), wdpaid)
+            logging.warning(msg)
+
+            # if shape different, choose the smaller
+            shape_rows = min(out_array_2000.shape[0], out_array_2010.shape[0])
+            shape_cols = min(out_array_2000.shape[1], out_array_2010.shape[1])
+            newshape = (shape_rows, shape_cols)
+
+            # DEBUG
+            msg = """%s; %s; original shape %s and %s, new shape %s"""%(time.ctime(), wdpaid, out_array_2000.shape, out_array_2010.shape, newshape)
+
+            logging.warning(msg)
+
+            out_array_2000 = adjust_shape(out_array_2000, newshape = newshape)
+            out_array_2010 = adjust_shape(out_array_2010, newshape = newshape)
+
+        # reconcile mask so that stats match: use the maximum extent
+        combined_mask = np.logical_and(out_array_2000.mask, out_array_2010.mask)
+        out_array_2000 = np.ma.array(out_array_2000.data, mask = combined_mask)
+        out_array_2010 = np.ma.array(out_array_2010.data, mask = combined_mask)
+
+    # return out_array_2000, out_array_2010
+
+
+        # analyse arrays
+        stats_2000 = analyse_categorical(out_array_2000)
+        stats_2010 = analyse_categorical(out_array_2010)
+        stats_conv = analyse_categorical_conversion(out_array_2000, out_array_2010)
+
+        # format
+        result_list.extend([[wdpaid, '2000', str(each_class), stats_2000[each_class], path_2000_tif, '-1'] for each_class in stats_2000])
+        result_list.extend([[wdpaid, '2010', str(each_class), stats_2010[each_class], '-1', path_2010_tif] for each_class in stats_2010])
+        result_list.extend([[wdpaid, '2000-2010', str(each_class), stats_conv[each_class], path_2000_tif, path_2010_tif] for each_class in stats_conv])
+
+    except Exception, e:
+        import traceback
+        # if things go wrong - log failed ids
+        msg = """%s; %s; Failed. %s"""%(time.ctime(), wdpaid, e)
+        print 'Failed ID:', wdpaid
+        print traceback.print_exc()
+
+        logging.error(msg)
+        result_list = [[wdpaid, 'failed', '-1', '-1', path_2000_tif, path_2010_tif]]
+
+    return result_list
+
+def process_each_wh_site_mk2(wdpaid):
     print 'Processing ID:', wdpaid
     # for each WH site by id 
     wh_ds_mem = create_mem_ds_from_ds_by_wdpaid(WH_DATASOURCE, wdpaid)
@@ -484,97 +578,14 @@ def process_each_wh_site(wdpaid):
 
     # get paths of 2000 and 2010 tiles
     path_list = find_landcover_tile_mk2(feature_geom)
-
-    # debug
-    for each in path_list:
-        print each # 2000
-
+    
     # main
-    counter = 0
     result_list = list()
-    for path_2000_shp, path_2000_tif, path_2010_shp, path_2010_tif in path_list:
-        counter += 1
 
-        # get data sources
-        tile_2000_ds = gdal.Open(path_2000_tif)
-        tile_2010_ds = gdal.Open(path_2010_tif)
-
-        # make sure overlapping tile boundaries are reconciled (input land cover data overlap along tile boundaries)
-            # get extent using index shapefile
-        tile_extent_2000_ds = get_fc_extent(path_2000_shp)
-        tile_extent_2010_ds = get_fc_extent(path_2010_shp)
-
-            # get landcover tile within the bound of the above index shapefile
-        clean_tiles_2000_ds = overlay_feature_array(tile_extent_2000_ds, tile_2000_ds, False)
-        clean_tiles_2010_ds = overlay_feature_array(tile_extent_2010_ds, tile_2010_ds, False)
-
-
-        # raster - vector overlap as numpy array
-        out_array_2000, array2raster_param_2000 = overlay_feature_array(wh_ds_mem, clean_tiles_2000_ds)
-        out_array_2010, array2raster_param_2010 = overlay_feature_array(wh_ds_mem, clean_tiles_2010_ds)
-
-            # if no overlap is found, skip
-        if out_array_2010 is None or out_array_2010 is None:
-            continue
-
-            # release memory
-        # tile_2000_ds = None
-        # tile_2010_ds = None
-        # clean_tiles_2000_ds = None
-        # clean_tiles_2010_ds = None
-
-        # reconcile array shape difference (input land cover data do not snap)
-        if out_array_2000.shape != out_array_2010.shape:
-            print 'Warning: inconsistent output array shape for ID ', wdpaid
-            print 'Warning: automatically split using the smaller array shape'
-
-            # if shape different, choose the smaller
-            shape_rows = min(out_array_2000.shape[0], out_array_2010.shape[0])
-            shape_cols = min(out_array_2000.shape[1], out_array_2010.shape[1])
-            newshape = (shape_rows, shape_cols)
-
-            # DEBUG
-            msg = """[Warning] ID %s: original shape %s and %s, new shape %s
-            """%(wdpaid, out_array_2000.shape, out_array_2010.shape, newshape)
-            logging.warning(msg)
-
-            out_array_2000 = adjust_shape(out_array_2000, newshape = newshape)
-            out_array_2010 = adjust_shape(out_array_2000, newshape = newshape)
-
-        # reconcile mask so that stats match: use the maximum extent
-        combined_mask = np.logical_and(out_array_2000.mask, out_array_2010.mask)
-        out_array_2000 = np.ma.array(out_array_2000.data, mask = combined_mask)
-        out_array_2010 = np.ma.array(out_array_2010.data, mask = combined_mask)
-
-    # return out_array_2000, out_array_2010
-
-        # analyse arrays
-        stats_2000 = analyse_categorical(out_array_2000)
-        stats_2010 = analyse_categorical(out_array_2010)
-        stats_conv = analyse_categorical_conversion(out_array_2000, out_array_2010)
-
-        # # debug: export to disk =========================
-        # out_array_2000_with_fill = out_array_2000.filled(99)
-        # out_array_2010_with_fill = out_array_2010.filled(99)
-        # debug_tif_path_2000 = str(wdpaid) + '_2000_' + str(counter) + '.tif'
-        # debug_tif_path_2010 = str(wdpaid) + '_2010_' + str(counter) + '.tif'
-
-        #     # must handle return raster object so that they could be destroyed
-        # outras_2000 = array2raster(out_array_2000_with_fill, debug_tif_path_2000, *array2raster_param_2000)
-        # outras_2010 = array2raster(out_array_2010_with_fill, debug_tif_path_2010, *array2raster_param_2010)
-
-        #     # Free memory
-        # outras_2000 = None
-        # outras_2010 = None
-
-        # print debug_tif_path_2000
-        # # debug: ends ===================================
-
-
-        # format
-        result_list.extend([[wdpaid, '2000', str(each_class), stats_2000[each_class]] for each_class in stats_2000])
-        result_list.extend([[wdpaid, '2010', str(each_class), stats_2010[each_class]] for each_class in stats_2010])
-        result_list.extend([[wdpaid, '2000-2010', str(each_class), stats_conv[each_class]] for each_class in stats_conv])
+    # for each wdpaid and path_tile(2000 and 2010)
+    for each_path_list in path_list:
+        result = process_each_wh_site_tile(wdpaid, each_path_list)
+        result_list.extend(result)
 
     return result_list
 
@@ -582,7 +593,7 @@ def process_each_wh_site(wdpaid):
 def write_each_wh_result(result_list, output=OUTPUT_FILE):
     if not os.path.exists(output):
         f = open(output, 'w')
-        f.write('wdapaid,year,class,pixels\n')
+        f.write('wdapaid,year,class,pixels,path_2000_tif,path_2010_tif\n')
 
     else:
         f = open(output, 'a')
@@ -595,8 +606,8 @@ def write_each_wh_result(result_list, output=OUTPUT_FILE):
 
 # -------------- TEST suites----------------
 
-def _test_process_each_wh_site(wdpaid = 2577):
-    return process_each_wh_site(wdpaid)
+def _test_process_each_wh_site(wdpaid = 2010):
+    return process_each_wh_site_mk2(wdpaid)
 
 
 def _test_overlay_feature_ds(wdpaid = 2577):
