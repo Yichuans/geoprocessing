@@ -223,7 +223,7 @@ def forest_loss(workspace, fc, outputfile_loss):
       print '----------------'
 
 
-def forest_base(workspace, fc, outputfile_base):
+def forest_base(workspace, fc, outputfile_base, threshold=25):
     os.chdir(workspace)
 
 
@@ -253,7 +253,7 @@ def forest_base(workspace, fc, outputfile_base):
 
             # returns a dictionary
             # result = desforestation_no_treshold(ras)
-            result = desforestation_base(ras)
+            result = desforestation_base(ras, threshold)
 
             # for each patch_id_value
             line = str(patch_id_value) + ','
@@ -342,7 +342,47 @@ def west_asia():
     forest_base(base_workspace, fc, outputfile_base)    
 
 # asian_pacific()
-west_asia()
+# west_asia()
+
+# 
+
+def asian_pacific_10():
+    # patch feature class
+    fc = r"D:\Yichuan\BrianO\AP\ap_teow.shp"
+    workspace = r"D:\Yichuan\BrianO\AP"
+    raster_loss_year = r"D:\Yichuan\Hansen\data.gdb\loss_year"
+    raster_base = r"D:\Yichuan\Hansen\data.gdb\treecover"
+
+
+    # BASE -----------------------------------------------
+    base_workspace = workspace
+
+    # output
+    outputfile_base = "result_base10.txt"
+
+    # run forest loss
+    forest_base(base_workspace, fc, outputfile_base, 10)    
+
+
+def west_asia_10():
+    # patch feature class
+    fc = r"D:\Yichuan\BrianO\WA\wa_teow.shp"
+    workspace = r"D:\Yichuan\BrianO\WA"
+    raster_loss_year = r"D:\Yichuan\Hansen\data.gdb\loss_year"
+    raster_base = r"D:\Yichuan\Hansen\data.gdb\treecover"
+
+
+    # BASE -----------------------------------------------
+    base_workspace = workspace
+
+    # output
+    outputfile_base = "result_base10.txt"
+
+    # run forest loss
+    forest_base(base_workspace, fc, outputfile_base, 10)    
+
+asian_pacific_10()
+west_asia_10()
 
 # test
 # a = 20
