@@ -1,11 +1,13 @@
 import os
 
 from PIL import Image
+from Yichuan10 import time_tracker
 
-OUTPUT_LENGTH = 500
-ENHANCE_CONTRAST = 1.3 #increase contrast
-JPG_QUALITY = 50 # export quality to reduce size
+OUTPUT_LENGTH = 300
+ENHANCE_CONTRAST = 1.4 #increase contrast
+JPG_QUALITY = 30 # export quality to reduce size
 
+@time_tracker
 def process_image(image_path, output_path):
     im_obj = Image.open(image_path)
 
@@ -102,6 +104,24 @@ def test_run():
             process_image(inputsrc, outputsrc)
 
 
-test_run()
+# test_run()
+
+def run_all():
+    export_folder = r"D:\web2py_2014\applications\wh_app\views\experiment\unesco_pic_resize"
+    if not os.path.exists(export_folder):
+        os.mkdir(export_folder)
+
+    input_folder = r"D:\unesco_pic"
+    for folder, subfolder, pics in os.walk(input_folder):
+        for pic in pics:
+            pic_path = folder + os.sep + pic
+
+            if pic_path.endswith('.jpg'):
+                inputsrc = pic_path
+                outputsrc = export_folder + os.sep + pic
+                process_image(inputsrc, outputsrc)
+
+
+run_all()
 
 
