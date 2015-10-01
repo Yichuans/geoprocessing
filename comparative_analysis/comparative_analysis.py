@@ -18,8 +18,8 @@ class PgIntersectView:
     # input all PgTable instances
     # Distinct clause need to be implemented in the database
     def __init__(self, conn_arg, base, theme, output):
-        assert not base.areFieldsNone() and not theme.areFieldsNone() and \
-               hasattr(base, 'geom') and hasattr(theme, 'geom')
+        # assert not base.areFieldsNone() and not theme.areFieldsNone() and \
+        #        hasattr(base, 'geom') and hasattr(theme, 'geom')
         self.conn = conn_arg.getConn()
         self.cur = self.conn.cursor()
         self.base = base
@@ -355,17 +355,25 @@ def post_intersection_mk2(conn_arg, intersect, output, nomi_id):
 
     conn.close()
 
-def get_ca_conn_arg():
+def get_ca_conn_arg(version=2014):
     """
     Get the default conn for comparative analysis
     """
-    conn_param = ConnectionParameter('localhost', 'whs', 5432, 'postgres', 'gisintern')
+    if version == 2014:
+        conn_param = ConnectionParameter('localhost', 'whs', 5432, 'postgres', 'gisintern')
+
+    elif version == 2015:
+        conn_param = ConnectionParameter('localhost', 'whs_v2', 5432, 'postgres', 'gisintern')
+
+    else:
+        print('version number wrong')
+        return None
 
     return conn_param
 
 
 
-def create_combined_wh_nomination_view(input_nomination, output_schema, conn):
+def create_combined_wh_nomination_view(input_nomination, WH_SHAPE, output_schema, conn):
     # not table always be schema + table
     sql_create = """
         CREATE OR REPLACE VIEW %s AS
@@ -420,8 +428,10 @@ def run_ca_for_a_theme(input_nomination, output_schema, themekey, conn_arg=get_c
     try:
         #pi.run(flag='view') # for debugging
         pi.run(flag='table') # for running
-    except:
+    except Exception as e:
+        print e
         print 'error creating tables, skip and continue'
+        return 0
 
      # for each table in the base tab intersection view will have filtered results
     for nomi_id in nomi_wdpaid:
@@ -479,9 +489,6 @@ def get_filtername(nomi_id, intersect_table_name):
 ### EXPORT TO EXCEL===========================================
 
 
-
-
-
 # CONSTANTS
 BASE_LOOKUP = {'eba': ['eba','ebaname'],
           'feow': ['feow', 'ecoregion'],
@@ -535,6 +542,27 @@ def ca_2014_tls():
     run_ca_tentative()
 
 
+# run ca 2015
+def ca_2015():
+    input_nomination = 'ca_nomi.nomi_2015'
+    output_schema = 'ca_2015'
+    for themekey in BASE_LOOKUP.keys():
+        run_ca_for_a_theme(input_nomination, output_schema, themekey, conn_arg=get_ca_conn_arg(2015))
+
+# run ca 2015
+def ca_2015_add():
+    input_nomination = 'ca_nomi.nomi_2015_add'
+    output_schema = 'ca_2015_add'
+    for themekey in BASE_LOOKUP.keys():
+        run_ca_for_a_theme(input_nomination, output_schema, themekey, conn_arg=get_ca_conn_arg(2015))
+
+def ca_2015_tls():
+    # tls comparartive analysis doesn't change
+    # needs to update PL and TLS if updates are required
+    run_ca_tentative(get_ca_conn_arg(2015))
+
+# clean ca if needed
+
 def clean_view(schema_to_clean, conn_arg=get_ca_conn_arg()):
     """
     this function is used to clear ALL views in the given schema
@@ -551,8 +579,6 @@ def clean_view(schema_to_clean, conn_arg=get_ca_conn_arg()):
             DROP VIEW IF EXISTS %s CASCADE
             """%(schema_to_clean + '.' + view,)
             process_sql(sql, conn)
-
-
 
 
 def _test():

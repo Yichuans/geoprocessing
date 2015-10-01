@@ -390,6 +390,7 @@ def get_filtername(nomi_id, intersect_table_name):
 def process_a_theme(sheet, start_row, site_id, theme_name, themekey):
     # for a theme, get data and write theme
     # theme_base_unit: 'provname, biome etc'
+    print(theme_name)
     import string
     theme_base_unit = BASE_LOOKUP[themekey][1]
 
@@ -421,6 +422,7 @@ def process_a_theme(sheet, start_row, site_id, theme_name, themekey):
         except Exception as e:
             print str(e)
             print sheet, start_row, site_id, theme_name, theme_base_unit
+            sys.exit(1)
 
         content = Content(base_name)
 
@@ -511,6 +513,11 @@ def get_aggregate_te_attr(unesco_list):
 ##    else:
 ##
 ##        content.add_whs
+
+
+
+# 2014
+
 COMBINED_WH_NOMINATION_VIEW = 'z_combined_wh_nomination_view'
 WH_ATTR = 'arcgis.v_wh_non_spatial_full'
 TLS_SHAPE = 'tls.tentative'
@@ -523,6 +530,48 @@ NOMI_ID = range(9991401, 9991410)
 
 conn_arg = ConnectionParameter()
 conn = conn_arg.getConn()
+
+# 2015
+COMBINED_WH_NOMINATION_VIEW = 'z_combined_wh_nomination_view'
+WH_ATTR = 'arcgis.v_wh_non_spatial_full'
+TLS_SHAPE = 'tls.tentative'
+
+OUTPUT_SCHEMA = 'ca_2015'
+TLS_SCHEMA = 'ca_tls'
+
+
+NOMI_ID = range(9991501, 9991505)
+
+
+conn_arg = ConnectionParameter(host = 'localhost',
+             db = 'whs_v2',
+             port = '5432',
+             user = 'postgres',
+             password = 'gisintern')
+
+conn = conn_arg.getConn()
+
+# 2015 add
+COMBINED_WH_NOMINATION_VIEW = 'z_combined_wh_nomination_view'
+WH_ATTR = 'arcgis.v_wh_non_spatial_full'
+TLS_SHAPE = 'tls.tentative'
+
+OUTPUT_SCHEMA = 'ca_2015_add'
+TLS_SCHEMA = 'ca_tls'
+
+
+NOMI_ID = range(9991505, 9991507)
+
+
+conn_arg = ConnectionParameter(host = 'localhost',
+             db = 'whs_v2',
+             port = '5432',
+             user = 'postgres',
+             password = 'gisintern')
+
+conn = conn_arg.getConn()
+
+
 
 # test
 ##main()
@@ -538,9 +587,19 @@ def main(outputfolder):
     conn.close()
 
 
-
 def run_nomi(outputfolder, nomi_id):
     pg2excel_per_site(nomi_id, outputfolder)
 
 # debug
 # run_nomi(r"D:\Yichuan\Comparative_analysis_2014\result", 9991409)
+
+def to_excel_2015(outputfolder = r"E:\Yichuan\Comparative_analysis_2015"):
+
+
+    main(outputfolder)
+
+
+
+
+# if __name__ == 'main':
+#     to_excel_2015()
