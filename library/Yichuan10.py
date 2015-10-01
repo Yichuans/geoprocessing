@@ -11,6 +11,9 @@ CurrentTime = str(dt.hour) + ':' + str(dt.minute) + ':' +str(dt.second) + ' ' + 
               str(dt.year)+'.'+str(dt.month)+'.' + str(dt.day)
 ModifiedDate = 'Ver: 8 Nov 2013'
 
+
+MUTLIPOINT_TEMPLATE = r'E:\Yichuan\MyGDB.gdb\multipoint_template'
+
 # srid, reference from ESRI projected_coordinate_system
 sr_dict = {'wgs': 4326,
            'plate_carree': 54001,
@@ -25,14 +28,14 @@ sr_dict = {'wgs': 4326,
 
 def Printboth(msg):
     """<string> -> print to both command line and arcmap geoprocessing window"""
-    print msg
+    print(msg)
     arcpy.AddMessage(msg)
 
 def util_printlist_duplicate(flist):
     for each in flist:
         length = len(flist) - int(flist.index(each)) - 1
         while length>0:
-            print each == flist[length]
+            print(each == flist[length])
             length -= 1
 
 class memory_tracker(object):
@@ -44,10 +47,10 @@ class memory_tracker(object):
     def __call__(self, *args):
         # get current process
         p = psutil.Process(os.getpid())
-        print time.ctime(), "[MEM]Current process memory (MB):", p.memory_info()[0]/1024/1024.0
-        print time.ctime(), "[MEM]Current function:", self.__name__
+        print(time.ctime(), "[MEM]Current process memory (MB):", p.memory_info()[0]/1024/1024.0)
+        print(time.ctime(), "[MEM]Current function:", self.__name__)
         result = self.f(*args)
-        print time.ctime(), "[MEM]Current process memory (MB):", p.memory_info()[0]/1024/1024.0
+        print(time.ctime(), "[MEM]Current process memory (MB):", p.memory_info()[0]/1024/1024.0)
         return result
 
 
@@ -589,7 +592,7 @@ def CreatePolygonFromXYdecimal(lonlatlist):
     return polygon
 
 def CreatePointFSFromMultiPointGeom(multipoint, outpath, fcname):
-    fc = arcpy.CreateFeatureclass_management(outpath, fcname, 'MULTIPOINT', r'D:\Yichuan\MyGDB.gdb\multipoint_template', '', '', 'Coordinate Systems\\Geographic Coordinate Systems\\World\\WGS 1984.prj')
+    fc = arcpy.CreateFeatureclass_management(outpath, fcname, 'MULTIPOINT', MUTLIPOINT_TEMPLATE, '', '', 'Coordinate Systems\\Geographic Coordinate Systems\\World\\WGS 1984.prj')
     rows = arcpy.InsertCursor(fc)
     row = rows.newRow()
     row.shape = multipoint

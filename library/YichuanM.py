@@ -137,6 +137,40 @@ def export_mxd_folder_map(folder, outformat='PNG'):
                 outpath = os.path.join(mxdfolder, filename + '.' + outformat)
                 export_map(outpath, outformat, mxd, reso = 300)
 
+
+def export_for_publish(path, ext, foldername, ExportMXDtoMap, publish=True):
+    counter = 0
+    for file in os.listdir(path):
+        # get filename and fileextension
+        base = os.path.basename(file)
+        filename, fileext = os.path.splitext(base)
+
+        if fileext == ext:
+            mxdfolder = os.path.join(path, foldername)
+            # make export folder if non exist
+            if not os.path.exists(mxdfolder):
+                os.mkdir(mxdfolder)
+
+            if publish:
+                # thumb
+                outpath = os.path.join(mxdfolder, filename + '.JPG')
+                ExportMXDtoMap(os.path.join(path, file),outpath, 3509, 2481, 100, 'JPG')
+
+                # png
+                outpath = os.path.join(mxdfolder, filename + '.PNG')
+                ExportMXDtoMap(os.path.join(path, file),outpath, 3509, 2481, 300, 'PNG')
+
+                # ai
+                outpath = os.path.join(mxdfolder, filename + '.AI')
+                ExportMXDtoMap(os.path.join(path, file),outpath, 3509, 2481, 300, 'AI')
+    ####
+                counter += 1
+            else:
+
+                outpath = os.path.join(mxdfolder, filename + '.PNG')
+                ExportMXDtoMap(os.path.join(path, file),outpath, 3509, 2481, 300, 'PNG')
+                
+
 if __name__ != "__main__":
     print "Mapping module imported %s, %s"%(CurrentTime,ModifiedDate)
 else:
