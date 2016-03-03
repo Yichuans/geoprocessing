@@ -99,6 +99,31 @@ BINOMIAL_FIELD = 'binomial'
 RL_FIELD = 'category'
 
 
+# 2016 SVGIG
+all_sp = "ad_hoc.svgig"
+all_sp_taxonid = 'svgig.id_no' # must not be the same as all_sis_taxonid
+all_sp_baseid = 'svgig.wdpaid'
+
+# all sis table
+all_sis = "ca_nomi.sis_pos_2015"
+all_sis_taxonid = "sis_pos_2015.id_no"
+
+# WH/nomi name look up table
+# NOTE: assuming wdpaid is present!!!!!
+wh_nomi_lookup = "ca_2016_svg.z_combined_wh_nomination_view"
+wh_nomi_name = "z_combined_wh_nomination_view.en_name"
+
+# a dirty trick - to get withstatement subquery fieldname
+filter_taxonid = 'id_no'
+filter_baseid = 'wdpaid'
+
+# name
+KINGDOM_FIELD = 'kingdom_name'
+CLASS_FIELD = 'class_name'
+BINOMIAL_FIELD = 'binomial'
+RL_FIELD = 'category'
+
+
 def filter_sp(whereclause):
     # this function partitions based on the criteria
     sql = """WITH
@@ -278,11 +303,6 @@ def main(output_schema):
 
 # main('ca_2015')
 
-main('ca_2015_add')
+# main('ca_2015_add')
 
-##def main2():
-##    mammal_whereclause = "WHERE class_name = 'MAMMALIA'"
-##    filterstatement = filter_sp(mammal_whereclause)
-##    summarise_sp(filterstatement, 'sr_mammal')
-##    summarise_sp_detail(filterstatement, 'sr_mammal')
-
+main('ca_2016_svg')

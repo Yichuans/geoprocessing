@@ -99,7 +99,7 @@ class PgIntersectView:
         basekm2.areakm2 as base_area
         FROM segkm2, themekm2, basekm2
         WHERE segkm2.tid = themekm2.tid AND segkm2.bid = basekm2.bid AND
-        segkm2.areakm2/themekm2.areakm2 > 0.05
+        segkm2.areakm2/themekm2.areakm2 > 0.05 # WARNING: this is a potential issue because the other way is not considered!
 
         ORDER BY segkm2.tid"""
         sql = header + '\n' + 'WITH ' + seg + ',\n' +\
@@ -556,13 +556,20 @@ def ca_2015_add():
     for themekey in BASE_LOOKUP.keys():
         run_ca_for_a_theme(input_nomination, output_schema, themekey, conn_arg=get_ca_conn_arg(2015))
 
+# run ca st.vincent and the grenadines
+def ca_2016_svg():
+    input_nomination = 'ca_nomi.nomi_svg'
+    output_schema = 'ca_2016_svg'
+    for themekey in BASE_LOOKUP.keys():
+        run_ca_for_a_theme(input_nomination, output_schema, themekey, conn_arg=get_ca_conn_arg(2015))
+
+
 def ca_2015_tls():
     # tls comparartive analysis doesn't change
     # needs to update PL and TLS if updates are required
     run_ca_tentative(get_ca_conn_arg(2015))
 
 # clean ca if needed
-
 def clean_view(schema_to_clean, conn_arg=get_ca_conn_arg()):
     """
     this function is used to clear ALL views in the given schema

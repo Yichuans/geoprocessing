@@ -516,31 +516,71 @@ def get_aggregate_te_attr(unesco_list):
 
 
 
-# 2014
+# # 2014 ====================
 
+# COMBINED_WH_NOMINATION_VIEW = 'z_combined_wh_nomination_view'
+# WH_ATTR = 'arcgis.v_wh_non_spatial_full'
+# TLS_SHAPE = 'tls.tentative'
+# TLS_ORGIN = 'tls.origin'
+
+# OUTPUT_SCHEMA = 'ca_2014'
+# TLS_SCHEMA = 'ca_tls'
+
+# NOMI_ID = range(9991401, 9991410)
+
+# conn_arg = ConnectionParameter()
+# conn = conn_arg.getConn()
+
+# # 2015 ================
+# COMBINED_WH_NOMINATION_VIEW = 'z_combined_wh_nomination_view'
+# WH_ATTR = 'arcgis.v_wh_non_spatial_full'
+# TLS_SHAPE = 'tls.tentative'
+
+# OUTPUT_SCHEMA = 'ca_2015'
+# TLS_SCHEMA = 'ca_tls'
+
+
+# NOMI_ID = range(9991501, 9991505)
+
+
+# conn_arg = ConnectionParameter(host = 'localhost',
+#              db = 'whs_v2',
+#              port = '5432',
+#              user = 'postgres',
+#              password = 'gisintern')
+
+# conn = conn_arg.getConn()
+
+# # 2015 add ===============
+# COMBINED_WH_NOMINATION_VIEW = 'z_combined_wh_nomination_view'
+# WH_ATTR = 'arcgis.v_wh_non_spatial_full'
+# TLS_SHAPE = 'tls.tentative'
+
+# OUTPUT_SCHEMA = 'ca_2015_add'
+# TLS_SCHEMA = 'ca_tls'
+
+
+# NOMI_ID = range(9991505, 9991507)
+
+
+# conn_arg = ConnectionParameter(host = 'localhost',
+#              db = 'whs_v2',
+#              port = '5432',
+#              user = 'postgres',
+#              password = 'gisintern')
+
+# conn = conn_arg.getConn()
+
+# 2016 st.vincent and the grenadines
 COMBINED_WH_NOMINATION_VIEW = 'z_combined_wh_nomination_view'
 WH_ATTR = 'arcgis.v_wh_non_spatial_full'
 TLS_SHAPE = 'tls.tentative'
+
+OUTPUT_SCHEMA = 'ca_2016_svg'
+TLS_SCHEMA = 'ca_tls'
 TLS_ORGIN = 'tls.origin'
 
-OUTPUT_SCHEMA = 'ca_2014'
-TLS_SCHEMA = 'ca_tls'
-
-NOMI_ID = range(9991401, 9991410)
-
-conn_arg = ConnectionParameter()
-conn = conn_arg.getConn()
-
-# 2015
-COMBINED_WH_NOMINATION_VIEW = 'z_combined_wh_nomination_view'
-WH_ATTR = 'arcgis.v_wh_non_spatial_full'
-TLS_SHAPE = 'tls.tentative'
-
-OUTPUT_SCHEMA = 'ca_2015'
-TLS_SCHEMA = 'ca_tls'
-
-
-NOMI_ID = range(9991501, 9991505)
+NOMI_ID = [99991600]
 
 
 conn_arg = ConnectionParameter(host = 'localhost',
@@ -550,27 +590,6 @@ conn_arg = ConnectionParameter(host = 'localhost',
              password = 'gisintern')
 
 conn = conn_arg.getConn()
-
-# 2015 add
-COMBINED_WH_NOMINATION_VIEW = 'z_combined_wh_nomination_view'
-WH_ATTR = 'arcgis.v_wh_non_spatial_full'
-TLS_SHAPE = 'tls.tentative'
-
-OUTPUT_SCHEMA = 'ca_2015_add'
-TLS_SCHEMA = 'ca_tls'
-
-
-NOMI_ID = range(9991505, 9991507)
-
-
-conn_arg = ConnectionParameter(host = 'localhost',
-             db = 'whs_v2',
-             port = '5432',
-             user = 'postgres',
-             password = 'gisintern')
-
-conn = conn_arg.getConn()
-
 
 
 # test
@@ -595,9 +614,10 @@ def run_nomi(outputfolder, nomi_id):
 
 def to_excel_2015(outputfolder = r"E:\Yichuan\Comparative_analysis_2015"):
 
-
     main(outputfolder)
 
+def to_excel_2016_svg(outputfolder = r"E:\Yichuan\Tim\st_vincent_and_the_grenadines\CA"):
+    main(outputfolder)
 
 
 
