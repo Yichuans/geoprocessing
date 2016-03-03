@@ -14,7 +14,7 @@ PWD = 'ad_hoc'
 
 # get connection parameters
 CONN_PARAM = ConnectionParameter(host = 'localhost',
-                 db = 'whs',
+                 db = 'whs_v2',
                  port = '5432',
                  user = USER,
                  password = PWD)
@@ -158,7 +158,28 @@ def correct_result_base10():
 
 
 
-
 # main()
 
-correct_result_base10()
+# correct_result_base10()
+
+
+def lac():
+	conn = CONN_PARAM.getConn()
+
+	# create sql for country loss stats and run
+	sql = create_sql_country_stats('result_loss', 'lac_teow_v2', 'lac_loss_country')
+	process_sql(sql, conn)
+
+	# create sql for loss year stats
+	sql = create_sql_loss_year_stats('result_loss', 'lac_loss_year')
+	process_sql(sql, conn)
+
+	# create sql for country base stats and run
+	sql = create_sql_country_stats_no_year('result_base10', 'lac_teow_v2', 'lac_base_country')
+	process_sql(sql, conn)
+
+	# close
+	conn.close()	
+
+
+lac()

@@ -1,1 +1,1 @@
-python forest_change_unep_report_recalculate.py
+E:\arcenv\scripts\activate && python forest_change_unep_report_recalculate.py

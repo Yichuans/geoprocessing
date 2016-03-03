@@ -7,14 +7,17 @@
 #-------------------------------------------------------------------------------
 import Yichuan10
 import os, sys, codecs
-import arcpy, numpy, math
+import numpy, math
+
 from Yichuan10 import simple_time_tracker
 
-from YichuanRAS import *
+
+from YichuanRAS import gdal_tif_to_numpy
 
 # CONSTANT
-# unique id in fc
+# unique id in fc, this needs to be created if not exist
 patch_id = 'patch_id'
+
 clip_loss = 'clip_loss'
 clip_base = 'clip_base'
 
@@ -109,61 +112,6 @@ def alt_desforestation_no_treshold(ras):
     result = [count_pixel, total_area]
 
     return result
-
-
-def clip_forest_raster(workspace, clip, fc, raster_path, fail_log = None):
-    # if not exist
-    workspace_clip = workspace + os.sep + clip
-    if not os.path.exists(workspace_clip):
-        os.mkdir(workspace_clip)
-
-    raster = arcpy.Raster(raster_path)
-    # debug
-    # print 'debug', patch_id
-    pa_list = Yichuan10.GetUniqueValuesFromFeatureLayer_mk2(fc, patch_id)
-    pa_set = set(pa_list)
-    pa_unfinish_set = set()
-
-    # if fail log exist
-    if not fail_log:
-        where_clause = None
-    else:
-        # if with list
-        where_clause = '\"' + patch_id + '\" in (' + Yichuan10.CreateListFromTxtTable(fail_log) + ')'
-
-    # Make sure the clips go to workspace_clip
-    arcpy.env.workspace = workspace_clip
-
-    # PA clipping carbon rasters
-    with arcpy.da.SearchCursor(fc, (patch_id, 'SHAPE@'), where_clause=where_clause) as cursor:
-        # for each site
-        for row in cursor:
-            # if the raster extent contains the feature geom, clip rasters
-            geom = row[1]
-            patch_id_value = row[0]
-            try:
-                if raster.extent.overlaps(geom) or raster.extent.contains(geom) :
-
-                    out_ras = str(patch_id_value) +'.tif'
-
-                    # clip
-                    clip_raster(geom, raster_path, out_ras, no_data=0)
-
-                    # complete
-                    print 'complete clipping: ' + str(patch_id_value)
-
-                else:
-                    print 'pass: ' + str(patch_id_value)
-
-                # finally remove id
-                pa_set.remove(patch_id_value)
-
-            except Exception as e:
-                pa_unfinish_set.add(patch_id_value)
-                print 'Error: ' + str(patch_id_value)
-                print str(e)
-                print sys.exc_info()[0]
-
 
 
 # run forest loss
@@ -278,51 +226,15 @@ def forest_base(workspace, fc, outputfile_base, threshold=25):
 
     f.close()
 
-def asian_pacific():
+
+def lac_calculate_already_clipped():
     # patch feature class
-    fc = r"D:\Yichuan\BrianO\AP\ap_teow.shp"
-    workspace = r"D:\Yichuan\BrianO\AP"
-    raster_loss_year = r"D:\Yichuan\Hansen\data.gdb\loss_year"
-    raster_base = r"D:\Yichuan\Hansen\data.gdb\treecover"
-
-#    CLIP for both LOSS and BASE -------------------------------
-#        LOSS
-    clip_forest_raster(workspace, clip_loss, fc, raster_loss_year)
-        # BASE
-    clip_forest_raster(workspace, clip_base, fc, raster_base)
-
-    # LOSS ----------------------------------------
-    loss_workspace = workspace
-
-    # output
-    outputfile_loss = "result_loss.txt"
-
-    # run forest loss
-    forest_loss(loss_workspace, fc, outputfile_loss)
-
-    # BASE -----------------------------------------------
-    base_workspace = workspace
-
-    # output
-    outputfile_base = "result_base25.txt"
-
-    # run forest loss
-    forest_base(base_workspace, fc, outputfile_base)    
-
-
-def west_asia():
-    # patch feature class
-    fc = r"D:\Yichuan\BrianO\WA\wa_teow.shp"
-    workspace = r"D:\Yichuan\BrianO\WA"
-    raster_loss_year = r"D:\Yichuan\Hansen\data.gdb\loss_year"
-    raster_base = r"D:\Yichuan\Hansen\data.gdb\treecover"
+    fc = r"E:\Yichuan\BrianO\LAC\lac_teow.shp"
+    workspace = r"E:\Yichuan\BrianO\LAC"
+    raster_loss_year = r"E:\Yichuan\Hansen\data.gdb\loss_year"
+    raster_base = r"E:\Yichuan\Hansen\data.gdb\treecover"
 
     # CLIP for both LOSS and BASE -------------------------------
-    #     LOSS
-    clip_forest_raster(workspace, clip_loss, fc, raster_loss_year)
-        # BASE
-    clip_forest_raster(workspace, clip_base, fc, raster_base)
-
     # LOSS ----------------------------------------
     loss_workspace = workspace
 
@@ -336,59 +248,10 @@ def west_asia():
     base_workspace = workspace
 
     # output
-    outputfile_base = "result_base25.txt"
-
-    # run forest loss
-    forest_base(base_workspace, fc, outputfile_base)    
-
-# asian_pacific()
-# west_asia()
-
-# 
-
-def asian_pacific_10():
-    # patch feature class
-    fc = r"D:\Yichuan\BrianO\AP\ap_teow.shp"
-    workspace = r"D:\Yichuan\BrianO\AP"
-    raster_loss_year = r"D:\Yichuan\Hansen\data.gdb\loss_year"
-    raster_base = r"D:\Yichuan\Hansen\data.gdb\treecover"
-
-
-    # BASE -----------------------------------------------
-    base_workspace = workspace
-
-    # output
     outputfile_base = "result_base10.txt"
 
     # run forest loss
-    forest_base(base_workspace, fc, outputfile_base, 10)    
+    forest_base(base_workspace, fc, outputfile_base, 10)
 
 
-def west_asia_10():
-    # patch feature class
-    fc = r"D:\Yichuan\BrianO\WA\wa_teow.shp"
-    workspace = r"D:\Yichuan\BrianO\WA"
-    raster_loss_year = r"D:\Yichuan\Hansen\data.gdb\loss_year"
-    raster_base = r"D:\Yichuan\Hansen\data.gdb\treecover"
-
-
-    # BASE -----------------------------------------------
-    base_workspace = workspace
-
-    # output
-    outputfile_base = "result_base10.txt"
-
-    # run forest loss
-    forest_base(base_workspace, fc, outputfile_base, 10)    
-
-asian_pacific_10()
-west_asia_10()
-
-# test
-# a = 20
-# def _test():
-#     # a = 10 
-#     print a
-#     print patch_id
-
-# _test()
+lac_calculate_already_clipped()
