@@ -143,5 +143,14 @@ def set_relative_path():
 ##export_for_publish(mxd_folder, '.mxd', 'mxd_export', Yichuan10.ExportMXDtoMap, False)
 
 
-mxd_folder = r"D:\Yichuan\Bastian\Wilderness_mapping"
+# mxd_folder = r"D:\Yichuan\Bastian\Wilderness_mapping"
+# export_for_publish(mxd_folder, '.mxd', 'mxd_export', Yichuan10.ExportMXDtoMap, True)
+
+
+# mxd_folder = r"E:\Yichuan\Diana\multiple_designations"
+# export_for_publish(mxd_folder, '.mxd', 'mxd_export', Yichuan10.ExportMXDtoMap, True)
+
+
+mxd_folder = r"E:\Yichuan\Wilderness_guidance\maps"
 export_for_publish(mxd_folder, '.mxd', 'mxd_export', Yichuan10.ExportMXDtoMap, True)
+
