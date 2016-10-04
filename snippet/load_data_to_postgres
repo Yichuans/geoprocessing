@@ -1,0 +1,9 @@
+# KBA
+"C:\Program Files\PostgreSQL\9.1\bin\shp2pgsql.exe" -s 4326 "E:\Yichuan\Basedata\KBA_2016_1\KbaMapGlobal_POL_9Feb_2016.shp" temp.kba_raw | "C:\Program Files\PostgreSQL\9.1\bin\psql.exe" -h localhost -d whs_v2 -U postgres -p 5432
+
+# hotspot
+"C:\Program Files\PostgreSQL\9.1\bin\shp2pgsql.exe" -s 4326 "E:\Yichuan\Basedata\hotspot\hotspots_2016_1.shp" temp.hs | "C:\Program Files\PostgreSQL\9.1\bin\psql.exe" -h localhost -d whs_v2 -U postgres -p 5432
+
+# wvs
+"C:\Program Files\PostgreSQL\9.1\bin\shp2pgsql.exe" -s 4326 "E:\Yichuan\Basedata\g-CombinedDataset-Dissolved-ForAnalysis-v4\EEZv8_WVS_DIS_V3_ALL_final_v7dis.shp" temp.wvs_dis | "C:\Program Files\PostgreSQL\9.1\bin\psql.exe" -h localhost -d whs_v2 -U postgres -p 5432
+

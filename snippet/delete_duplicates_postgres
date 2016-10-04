@@ -1,0 +1,29 @@
+DELETE FROM pl.cpd WHERE ctid in (
+SELECT max(ctid)
+FROM pl.cpd
+GROUP BY cpd.*);
+
+DELETE FROM pl.eba WHERE ctid in (
+SELECT max(ctid)
+FROM pl.eba
+GROUP BY eba.*);
+
+DELETE FROM pl.feow WHERE ctid in (
+SELECT max(ctid)
+FROM pl.feow
+GROUP BY feow.*);
+
+DELETE FROM pl.g200_fw WHERE ctid in (
+SELECT max(ctid)
+FROM pl.g200_fw
+GROUP BY g200_fw.*);
+
+DELETE FROM pl.g200_marine WHERE ctid in (
+SELECT max(ctid)
+FROM pl.g200_marine
+GROUP BY g200_marine.*);
+
+DELETE FROM pl.g200_terr WHERE ctid in (
+SELECT max(ctid)
+FROM pl.g200_terr
+GROUP BY g200_terr.*);
