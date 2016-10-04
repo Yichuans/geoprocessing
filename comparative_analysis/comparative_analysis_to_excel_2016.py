@@ -399,6 +399,7 @@ def process_a_theme(sheet, start_row, site_id, theme_name, themekey):
 
     # find wh_filter_tab
     filter_tab = OUTPUT_SCHEMA + '.' +  get_filtername(site_id, get_intersectname(themekey))
+    print(filter_tab)
 
     # find tentative tab
     te_tab = TLS_SCHEMA + '.' + get_intersectname(themekey)
@@ -576,11 +577,12 @@ COMBINED_WH_NOMINATION_VIEW = 'z_combined_wh_nomination_view'
 WH_ATTR = 'arcgis.v_wh_non_spatial_full'
 TLS_SHAPE = 'tls.tentative'
 
-OUTPUT_SCHEMA = 'ca_2016_svg'
+OUTPUT_SCHEMA = 'ca_2016'
 TLS_SCHEMA = 'ca_tls'
 TLS_ORGIN = 'tls.origin'
 
-NOMI_ID = [99991600]
+# NOMI_ID = [9991601]
+NOMI_ID = range(9991601, 9991610)
 
 
 conn_arg = ConnectionParameter(host = 'localhost',
@@ -605,18 +607,7 @@ def main(outputfolder):
         pg2excel_per_site(candidate, outputfolder)
     conn.close()
 
-
-def run_nomi(outputfolder, nomi_id):
-    pg2excel_per_site(nomi_id, outputfolder)
-
-# debug
-# run_nomi(r"D:\Yichuan\Comparative_analysis_2014\result", 9991409)
-
-def to_excel_2015(outputfolder = r"E:\Yichuan\Comparative_analysis_2015"):
-
-    main(outputfolder)
-
-def to_excel_2016_svg(outputfolder = r"E:\Yichuan\Tim\st_vincent_and_the_grenadines\CA"):
+def to_excel_2016(outputfolder = r"E:\Yichuan\Comparative_analysis_2016"):
     main(outputfolder)
 
 

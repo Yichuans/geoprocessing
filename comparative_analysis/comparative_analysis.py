@@ -395,7 +395,7 @@ def run_ca_for_a_theme(input_nomination, output_schema, themekey, conn_arg=get_c
     """
     with conn_arg.getConn() as conn:
         # get nomi_wdpaid
-        sql = "SELECT wdpaid FROM %s"%(input_nomination,)
+        sql = "SELECT wdpaid :: integer FROM %s"%(input_nomination,)
         nomi_wdpaid = get_sql_result_as_list(sql, conn)
 
         # get unique
@@ -431,7 +431,7 @@ def run_ca_for_a_theme(input_nomination, output_schema, themekey, conn_arg=get_c
     except Exception as e:
         print e
         print 'error creating tables, skip and continue'
-        return 0
+        # return 0
 
      # for each table in the base tab intersection view will have filtered results
     for nomi_id in nomi_wdpaid:
@@ -568,6 +568,17 @@ def ca_2015_tls():
     # tls comparartive analysis doesn't change
     # needs to update PL and TLS if updates are required
     run_ca_tentative(get_ca_conn_arg(2015))
+
+
+
+# run ca 2016
+def ca_2016():
+    input_nomination = 'ca_nomi.nomi_2016'
+    output_schema = 'ca_2016'
+    for themekey in BASE_LOOKUP.keys():
+        run_ca_for_a_theme(input_nomination, output_schema, themekey, conn_arg=get_ca_conn_arg(2015))
+
+
 
 # clean ca if needed
 def clean_view(schema_to_clean, conn_arg=get_ca_conn_arg()):
