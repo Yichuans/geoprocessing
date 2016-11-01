@@ -16,6 +16,15 @@ OUTPUT_RESULT =  r"E:\Yichuan\Colleen\result.csv"
 OUTLOG = r"E:\Yichuan\Colleen\log2.log"
 
 
+INPUTFC = r"E:\Yichuan\Red_List_data\rk_update_2016_2\merge.gdb\RL_2016_2"
+INPUTFC2 =  r"E:\Yichuan\Colleen\new_input.gdb\merge_multi_part_clip"
+# INPUTFC =  r"E:\Yichuan\Climate_vulnerability_wh\iucn_rl_2015_4.gdb\iucn_rl_2015_4_dice5000_combined"
+
+OUTPUT_RESULT =  r"E:\Yichuan\Colleen\result2.csv"
+OUTLOG = r"E:\Yichuan\Colleen\log2.log"
+
+
+
 def worker(q_input, q_output, q_log):
     inputFL = 'temp_layer'
     arcpy.MakeFeatureLayer_management(INPUTFC2, inputFL)
