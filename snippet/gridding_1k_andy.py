@@ -61,6 +61,16 @@ OUTPUT_RESULT =  r"E:\Yichuan\Andy\result_1k.csv"
 OUTLOG = r"E:\Yichuan\Andy\log4.log"
 
 
+# run 6 ============
+INPUTFC = r"E:\Yichuan\Andy\merged_fcs1_0dps.shp"
+ID = "oid@"
+
+INPUTFC2 = r"E:\Yichuan\Andy\grids.gdb\grid50km_intersecting_wdpa"
+ID2 = "oid@"
+
+OUTPUT_RESULT =  r"E:\Yichuan\Andy\result_marine.csv"
+OUTLOG = r"E:\Yichuan\Andy\log_marine.log"
+
 def worker(q_input, q_output, q_log):
     inputFL = 'temp_layer'
     arcpy.MakeFeatureLayer_management(INPUTFC2, inputFL)
