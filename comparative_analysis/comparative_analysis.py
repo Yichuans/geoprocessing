@@ -579,6 +579,12 @@ def ca_2016():
         run_ca_for_a_theme(input_nomination, output_schema, themekey, conn_arg=get_ca_conn_arg(2015))
 
 
+def ca_2016_supplement():
+    input_nomination = 'ca_nomi.nomi_2016_supp'
+    output_schema = 'ca_2016_supp'
+    for themekey in BASE_LOOKUP.keys():
+        run_ca_for_a_theme(input_nomination, output_schema, themekey, conn_arg=get_ca_conn_arg(2015))
+
 
 # clean ca if needed
 def clean_view(schema_to_clean, conn_arg=get_ca_conn_arg()):

@@ -572,7 +572,7 @@ def get_aggregate_te_attr(unesco_list):
 
 # conn = conn_arg.getConn()
 
-# 2016 st.vincent and the grenadines
+# 2016
 COMBINED_WH_NOMINATION_VIEW = 'z_combined_wh_nomination_view'
 WH_ATTR = 'arcgis.v_wh_non_spatial_full'
 TLS_SHAPE = 'tls.tentative'
@@ -585,6 +585,19 @@ TLS_ORGIN = 'tls.origin'
 NOMI_ID = range(9991601, 9991610)
 
 
+# 2016 supplement
+COMBINED_WH_NOMINATION_VIEW = 'z_combined_wh_nomination_view'
+WH_ATTR = 'arcgis.v_wh_non_spatial_full'
+TLS_SHAPE = 'tls.tentative'
+
+OUTPUT_SCHEMA = 'ca_2016_supp'
+TLS_SCHEMA = 'ca_tls'
+TLS_ORGIN = 'tls.origin'
+
+# NOMI_ID = [9991601]
+NOMI_ID = [7508, 874]
+
+
 conn_arg = ConnectionParameter(host = 'localhost',
              db = 'whs_v2',
              port = '5432',
@@ -592,8 +605,6 @@ conn_arg = ConnectionParameter(host = 'localhost',
              password = 'gisintern')
 
 conn = conn_arg.getConn()
-
-
 # test
 ##main()
 

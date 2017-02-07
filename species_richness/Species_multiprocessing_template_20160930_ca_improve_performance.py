@@ -38,6 +38,15 @@ hexagonID = "wdpaid"
 
 output_result_path = r'E:\Yichuan\Comparative_analysis_2016\result.csv'
 
+# supplement
+speciesData = r"E:\Yichuan\Red_List_data\rk_update_2016_2\merge.gdb\RL_2016_2_Dice5000_pos"
+speciesID = 'id_no'
+
+hexagonData = r"E:\Yichuan\Comparative_analysis_2016\supplementary_ca\gemsbok.shp"
+hexagonID = "wdpaid"
+
+output_result_path = r'E:\Yichuan\Comparative_analysis_2016\supplementary_ca\result.csv'
+
 
 def get_id():
     idlist = GetUniqueValuesFromFeatureLayer_mk2(speciesData, speciesID)
