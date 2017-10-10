@@ -61,6 +61,10 @@ def export_for_publish(path, ext, foldername, ExportMXDtoMap, publish=True):
                 outpath = os.path.join(mxdfolder, filename + '.AI')
                 ExportMXDtoMap(os.path.join(path, file),outpath, 3509, 2481, 300, 'AI')
     ####
+
+                outpath = os.path.join(mxdfolder, filename + '.EPS')
+                ExportMXDtoMap(os.path.join(path, file),outpath, 3509, 2481, 300, 'EPS')
+
                 counter += 1
             else:
 
@@ -88,10 +92,10 @@ def export_for_publish_one_mxd(filepath, foldername, ExportMXDtoMap):
         # ai
         outpath = os.path.join(mxdfolder, filename + '.AI')
         ExportMXDtoMap(filepath, outpath, 3509, 2481, 300, 'AI')
-##
-##        # eps
-##        outpath = os.path.join(mxdfolder, filename + '.EPS')
-##        ExportMXDtoMap(filepath, outpath, 3509, 2481, 300, 'EPS')
+
+       # # eps
+       #  outpath = os.path.join(mxdfolder, filename + '.EPS')
+       #  ExportMXDtoMap(filepath, outpath, 3509, 2481, 300, 'EPS')
 
     else:
         print 'file extension:', fileext, 'is not mxd'
@@ -151,6 +155,8 @@ def set_relative_path():
 # export_for_publish(mxd_folder, '.mxd', 'mxd_export', Yichuan10.ExportMXDtoMap, True)
 
 
-mxd_folder = r"E:\Yichuan\Wilderness_guidance\maps"
-export_for_publish(mxd_folder, '.mxd', 'mxd_export', Yichuan10.ExportMXDtoMap, True)
+# mxd_folder = r"E:\Yichuan\Wilderness_guidance\maps"
+# export_for_publish(mxd_folder, '.mxd', 'mxd_export', Yichuan10.ExportMXDtoMap, True)
 
+mxd_folder = r"E:\Yichuan\Andy\maps"
+export_for_publish(mxd_folder, '.mxd', 'mxd_export', Yichuan10.ExportMXDtoMap, True)

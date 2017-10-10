@@ -71,6 +71,28 @@ ID2 = "oid@"
 OUTPUT_RESULT =  r"E:\Yichuan\Andy\result_marine.csv"
 OUTLOG = r"E:\Yichuan\Andy\log_marine.log"
 
+
+# run 7==============
+INPUTFC = r"E:\Yichuan\Andy\2017_overlap_outputs.gdb\merged_fc_joined_regional_land"
+ID = "oid@"
+
+INPUTFC2 = r"E:\Yichuan\Andy\grids.gdb\grid50km_intersecting_wdpa"
+ID2 = "oid@"
+
+OUTPUT_RESULT =  r"E:\Yichuan\Andy\new_result_terr.csv"
+OUTLOG = r"E:\Yichuan\Andy\log_terr.log"
+
+# run 8==============
+INPUTFC = r"E:\Yichuan\Andy\2017_overlap_outputs.gdb\merged_fc_joined_regional_marine"
+ID = "oid@"
+
+INPUTFC2 = r"E:\Yichuan\Andy\grids.gdb\grid50km_intersecting_wdpa"
+ID2 = "oid@"
+
+OUTPUT_RESULT =  r"E:\Yichuan\Andy\new_result_marine.csv"
+OUTLOG = r"E:\Yichuan\Andy\log_marine.log"
+
+
 def worker(q_input, q_output, q_log):
     inputFL = 'temp_layer'
     arcpy.MakeFeatureLayer_management(INPUTFC2, inputFL)

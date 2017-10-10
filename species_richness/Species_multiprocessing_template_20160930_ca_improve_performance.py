@@ -47,6 +47,15 @@ hexagonID = "wdpaid"
 
 output_result_path = r'E:\Yichuan\Comparative_analysis_2016\supplementary_ca\result.csv'
 
+# WDPA check
+speciesData = r"E:\Yichuan\WDPA\WDPA_Jan2017_Public\WDPA_Jan2017_Public.gdb\WDPA_poly_Jan2017"
+speciesID = 'wdpaid'
+
+hexagonData = r"E:\Yichuan\WDPA\WDPA_Jan2017_Public\WDPA_Jan2017_Public.gdb\WDPA_poly_Jan2017"
+hexagonID = "wdpaid"
+
+output_result_path = r'E:\Yichuan\BrianM\WDPA_overlap_any_WDPAID\result.csv'
+
 
 def get_id():
     idlist = GetUniqueValuesFromFeatureLayer_mk2(speciesData, speciesID)

@@ -490,7 +490,7 @@ def get_filtername(nomi_id, intersect_table_name):
 
 
 # CONSTANTS
-BASE_LOOKUP = {'eba': ['eba','ebaname'],
+BASE_LOOKUP1 = {'eba': ['eba','ebaname'],
           'feow': ['feow', 'ecoregion'],
           'g200_terr': ['g200_terr', 'g200_regio'],
           'g200_marine': ['g200_marine', 'g200_regio'],
@@ -510,6 +510,19 @@ BASE_LOOKUP = {'eba': ['eba','ebaname'],
           'aze': ['aze', 'aze_id'],
           'iba': ['iba', 'sitrecid'],
           'kba': ['kba', 'sitrecid']}
+
+# shallow copy
+BASE_LOOKUP2 = BASE_LOOKUP1.copy()
+BASE_LOOKUP2.update({
+    'ecos_2017_e': ['ecos_2017_clean', 'eco_name'],
+    'ecos_2017_b': ['ecos_2017_clean', 'biome_name'],
+    'ecos_2017_r': ['ecos_2017_clean', 'realm'],
+    'ecos_2017_rb': ['ecos_2017_clean', 'realm_biome'],
+    })
+
+
+# use the new LOOKUP TABLE
+BASE_LOOKUP = BASE_LOOKUP2
 
 # output schema and combined view name
 COMBINED_WH_NOMINATION_VIEW = 'z_combined_wh_nomination_view'
@@ -586,6 +599,22 @@ def ca_2016_supplement():
         run_ca_for_a_theme(input_nomination, output_schema, themekey, conn_arg=get_ca_conn_arg(2015))
 
 
+# run ca adhoc
+def ca_adhoc():
+    input_nomination = 'ca_nomi.nomi_2016_supp'
+    output_schema = 'ca_adhoc'
+    for themekey in BASE_LOOKUP.keys():
+        run_ca_for_a_theme(input_nomination, output_schema, themekey, conn_arg=get_ca_conn_arg(2015))
+
+
+# run ca 2017
+def ca_2017():
+    input_nomination = 'ca_nomi.nomi_2017'
+    output_schema = 'ca_2017'
+    for themekey in BASE_LOOKUP.keys():
+        run_ca_for_a_theme(input_nomination, output_schema, themekey, conn_arg=get_ca_conn_arg(2015))
+
+
 # clean ca if needed
 def clean_view(schema_to_clean, conn_arg=get_ca_conn_arg()):
     """
@@ -610,3 +639,26 @@ def _test():
     output_schema = 'ca_2014'
     themename = 'udv_dcw_r'
     run_ca_for_a_theme(input_nomination, output_schema, themename, conn_arg=get_ca_conn_arg())
+
+
+# multi
+from multiprocessing import Pool
+
+# def f(themekey):
+#     input_nomination = 'ca_nomi.nomi_2016_supp'
+#     output_schema = 'ca_adhoc'
+#     run_ca_for_a_theme(input_nomination, output_schema, themekey, conn_arg=get_ca_conn_arg(2015))
+
+# run ca_2017 parallel
+def f(themekey):
+    input_nomination = 'ca_nomi.nomi_2017'
+    output_schema = 'ca_2017'
+    run_ca_for_a_theme(input_nomination, output_schema, themekey, conn_arg=get_ca_conn_arg(2015))
+
+
+# wrap in main
+if __name__ == '__main__':
+    p = Pool(10)
+    keys = BASE_LOOKUP.keys()
+    print keys
+    print(p.map(f,keys))
