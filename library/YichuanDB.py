@@ -72,7 +72,7 @@ def getCurrentWH():
     psycopg2 connection object
 
     """
-    conn_parameter = ConnectionParameter(db='whs', port='5432')
+    conn_parameter = ConnectionParameter(db='whs_v2', port='5432')
     return conn_parameter.getConn()
 
 @handle_connection

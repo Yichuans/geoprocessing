@@ -587,22 +587,12 @@ COMBINED_WH_NOMINATION_VIEW = 'z_combined_wh_nomination_view'
 WH_ATTR = 'arcgis.v_wh_non_spatial_full'
 TLS_SHAPE = 'tls.tentative'
 
-OUTPUT_SCHEMA = 'ca_2017'
+OUTPUT_SCHEMA = 'ca_2017_with_supp'
 TLS_SCHEMA = 'ca_tls'
 TLS_ORGIN = 'tls.origin'
 
-# NOMI_ID = [9991601]
-NOMI_ID = range(9991701, 9991706)
-
-
-# 2016 supplement
-COMBINED_WH_NOMINATION_VIEW = 'z_combined_wh_nomination_view'
-WH_ATTR = 'arcgis.v_wh_non_spatial_full'
-TLS_SHAPE = 'tls.tentative'
-
-OUTPUT_SCHEMA = 'ca_2017'
-TLS_SCHEMA = 'ca_tls'
-TLS_ORGIN = 'tls.origin'
+# adding supplement
+NOMI_ID = range(9991701, 9991706) + range(99917011, 99917015) + range(99917021, 99917023)
 
 
 conn_arg = ConnectionParameter(host = 'localhost',

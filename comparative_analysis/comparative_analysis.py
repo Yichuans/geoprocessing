@@ -616,7 +616,7 @@ def ca_2017():
 
 
 # clean ca if needed
-def clean_view(schema_to_clean, conn_arg=get_ca_conn_arg()):
+def clean_view(schema_to_clean, conn_arg=get_ca_conn_arg(2015)):
     """
     this function is used to clear ALL views in the given schema
 
@@ -649,10 +649,17 @@ from multiprocessing import Pool
 #     output_schema = 'ca_adhoc'
 #     run_ca_for_a_theme(input_nomination, output_schema, themekey, conn_arg=get_ca_conn_arg(2015))
 
-# run ca_2017 parallel
+# # run ca_2017 parallel
+# def f(themekey):
+#     input_nomination = 'ca_nomi.nomi_2017'
+#     output_schema = 'ca_2017'
+#     run_ca_for_a_theme(input_nomination, output_schema, themekey, conn_arg=get_ca_conn_arg(2015))
+
+
+# run ca_2017 parallel with supplement
 def f(themekey):
-    input_nomination = 'ca_nomi.nomi_2017'
-    output_schema = 'ca_2017'
+    input_nomination = 'ca_nomi.nomi_2017_with_supp'
+    output_schema = 'ca_2017_with_supp'
     run_ca_for_a_theme(input_nomination, output_schema, themekey, conn_arg=get_ca_conn_arg(2015))
 
 

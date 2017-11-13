@@ -170,5 +170,9 @@ def tls():
 COMBINED_WH_NOMINATION_VIEW = 'z_combined_wh_nomination_view'
 TLS_SHAPE = 'tls.tentative'
 
-OUTPUT_SCHEMA = 'ca_2017'
+OUTPUT_SCHEMA = 'ca_2017_with_supp'
 TLS_SCHEMA = 'ca_tls'
+
+if __name__ == '__main__':
+    wh()
+    tls()

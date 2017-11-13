@@ -171,6 +171,32 @@ CLASS_FIELD = 'class_name'
 BINOMIAL_FIELD = 'binomial'
 RL_FIELD = 'code'
 
+
+# 2017 =================
+all_sp = "ad_hoc.species_ca_2017"
+all_sp_taxonid = 'species_ca_2017.id_no' # must not be the same as all_sis_taxonid
+all_sp_baseid = 'species_ca_2017.wdpaid'
+
+# all sis table
+all_sis = "ad_hoc.rl_2017_2_pos"
+all_sis_taxonid = "rl_2017_2_pos.id_no"
+
+# WH/nomi name look up table
+# NOTE: assuming wdpaid is present!!!!!
+wh_nomi_lookup = "ca_2017_with_supp.z_combined_wh_nomination_view"
+wh_nomi_name = "z_combined_wh_nomination_view.en_name"
+
+# a dirty trick - to get withstatement subquery fieldname
+filter_taxonid = 'id_no'
+filter_baseid = 'wdpaid'
+
+# name
+KINGDOM_FIELD = 'kingdom'
+CLASS_FIELD = 'class'
+BINOMIAL_FIELD = 'binomial'
+RL_FIELD = 'code'
+
+
 def filter_sp(whereclause):
     # this function partitions based on the criteria
     sql = """WITH
@@ -355,4 +381,5 @@ def main(output_schema):
 # main('ca_2016_svg')
 
 # main('ca_2016')
-main('ca_2016_supp')
+
+main('ca_2017_with_supp')
