@@ -1,51 +1,46 @@
 # run richness using the multiprocessing template
-
 import multiprocessing
-import time
+import time, datetime
 import os, sys
+import arcpy
+import gzip
 
 # the number of cores used - the following ensures there is one core remaining for other tasks
 WORKER = multiprocessing.cpu_count() - 2
 
 # specify num of workers
 # WORKER = 4
-import arcpy
-from Yichuan10 import GetUniqueValuesFromFeatureLayer_mk2
 
+def GetUniqueValuesFromFeatureLayer_mk2(inputFc, inputField):
+    """<string>, <string> -> pythonList
+    can be both feature class or feature layer"""
+    pySet = set()
+    with arcpy.da.SearchCursor(inputFc, inputField) as cursor:
+        for row in cursor:
+            pySet.add(row[0])
+
+    return pySet
 
 # CONSTANT
 speciesLyr="Species_Lyr" # The species layer
 hexagonLyr="Hexagons_Lyr" # The hexagons layer
 overLapOption = 'INTERSECT'
 
-
-# nomination results
-speciesData = r"E:\Yichuan\Red_List_data\2017\allspecies_2017_2.gdb\allspecies_2017_2_pos"
-speciesID = 'id_no'
-
-hexagonData = r"E:\Yichuan\sites2017\digi\merge_including_supplement.shp"
-hexagonID = "wdpaid"
-
-output_result_path = r'E:\Yichuan\Comparative_analysis_2017\result.csv'
-
-
 # WH results
 speciesData = r"E:\Yichuan\Red_List_data\2017\allspecies_2017_2.gdb\allspecies_2017_2_pos"
 speciesID = 'id_no'
 
-hexagonData = r"E:\Yichuan\WHS.gdb\whs_dump_170717"
-hexagonID = "wdpaid"
-
-output_result_path = r'E:\Yichuan\Comparative_analysis_2017\result_wh2.csv'
-
+hexagonData = r"E:\Yichuan\TEMP\test.gdb\Grid"
+hexagonID = "FISH_ID"
+# output_result_path = r'E:\Yichuan\test_result2017_reso10.csv'
+output_result_path = r'E:\Yichuan\test_result2017_reso10_memo.csv.gz'
 
 
 def get_id():
     idlist = GetUniqueValuesFromFeatureLayer_mk2(speciesData, speciesID)
     # sort list
-    idlist.sort()
+    # idlist.sort()
     return idlist
-
 
 def species_richness_calculation(id, hexagonLyr):
 
@@ -70,7 +65,7 @@ def species_richness_calculation(id, hexagonLyr):
     result = list()
     #
     for hex_id in hex_ids:
-        result.append(str(id) + ',' + str(hex_id) + '\n')
+        result.append(str(int(id)) + ',' + str(hex_id) + '\n')
 
     # get rid of layers
     arcpy.Delete_management(speciesLyr)
@@ -101,7 +96,16 @@ def process_result(result):
             for line in result:
                 f.write(line)
 
-    pass
+def process_result_v2(result):
+    if not os.path.exists(output_result_path):
+        with gzip.open(output_result_path, 'w') as f:
+            f.write('ID_NO, WDPAID')
+            f.write('\n')
+    else:
+        # ADD: process result logic here
+        with gzip.open(output_result_path, 'a') as f:
+            for line in result:
+                f.write(line)
 
 # --------------- TEMPLATE -----------------------
 def worker_writer(q_out):
@@ -111,7 +115,7 @@ def worker_writer(q_out):
         if result == 'STOP':
             break
 
-        process_result(result)
+        process_result_v2(result)
 
 
 def worker(q, q_out):
@@ -120,7 +124,8 @@ def worker(q, q_out):
 
     while True:
         # monitoring
-        if q.qsize() %200 == 0:
+        if q.qsize() %100 == 0:
+            print('Time:', datetime.datetime.now().time())
             print('Remaining jobs:', q.qsize())
 
         # get and ID from job id queue
@@ -171,6 +176,9 @@ def main():
 
     # wait for the writer to finish
     p_w.join()
+
+    # needed if the species data is copied to in_memory
+    # arcpy.Delete_management(speciesData)
 
 
 if __name__ == '__main__':
