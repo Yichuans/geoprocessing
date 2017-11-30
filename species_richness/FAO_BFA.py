@@ -26,7 +26,7 @@ speciesLyr="Species_Lyr" # The species layer
 hexagonLyr="Hexagons_Lyr" # The hexagons layer
 overLapOption = 'INTERSECT'
 
-# WDPA and HEXGRID
+# Species
 speciesData = r"E:\Yichuan\Red_List_data\2017\allspecies_2017_2.gdb\bfa_species"
 speciesID = 'row_id'
 
@@ -37,6 +37,38 @@ output_result_path = r'E:\Yichuan\Barbara_IUCN\hex_bfa.csv.gz'
 log_path = r"E:\Yichuan\Barbara_IUCN\hex_bfa_log.csv"
 
 
+
+# Species_failed
+speciesData = r"E:\Yichuan\Red_List_data\2017\allspecies_2017_2.gdb\bfa_species_failed"
+speciesID = 'row_id'
+
+hexagonData = r"E:\Yichuan\Basedata\hex_grid.gdb\hex_10k"
+hexagonID = "hexid"
+# output_result_path = r'E:\Yichuan\test_result2017_reso10.csv'
+output_result_path = r'E:\Yichuan\Barbara_IUCN\hex_bfa_add.csv.gz'
+log_path = r"E:\Yichuan\Barbara_IUCN\hex_bfa_log_add.csv"
+
+
+# Species_failed dice method
+speciesData = r"E:\Yichuan\Red_List_data\2017\allspecies_2017_2.gdb\bfa_species_failed_dice"
+speciesID = 'row_id'
+
+hexagonData = r"E:\Yichuan\Basedata\hex_grid.gdb\hex_10k"
+hexagonID = "hexid"
+# output_result_path = r'E:\Yichuan\test_result2017_reso10.csv'
+output_result_path = r'E:\Yichuan\Barbara_IUCN\hex_bfa_add_dice.csv.gz'
+log_path = r"E:\Yichuan\Barbara_IUCN\hex_bfa_log_add_dice.csv"
+
+
+# Species_failed dice method
+speciesData = r"E:\Yichuan\Red_List_data\2017\allspecies_2017_2.gdb\bfa_species_failed_dice_still_fail_fix"
+speciesID = 'row_id'
+
+hexagonData = r"E:\Yichuan\Basedata\hex_grid.gdb\hex_10k"
+hexagonID = "hexid"
+# output_result_path = r'E:\Yichuan\test_result2017_reso10.csv'
+output_result_path = r'E:\Yichuan\Barbara_IUCN\hex_bfa_add_dice_still_fail.csv.gz'
+log_path = r"E:\Yichuan\Barbara_IUCN\hex_bfa_log_add_dice_still_fail.csv"
 
 def get_id():
     idlist = GetUniqueValuesFromFeatureLayer_mk2(speciesData, speciesID)
@@ -91,7 +123,7 @@ def get_queue():
 def process_result(result):
     if not os.path.exists(output_result_path):
         with open(output_result_path, 'w') as f:
-            f.write('{}, {}\n'.format(speciesID, hexagonID))
+            f.write('{},{}\n'.format(speciesID, hexagonID))
 
     else:
         # ADD: process result logic here
@@ -103,7 +135,7 @@ def process_result(result):
 def process_result_v2(result):
     if not os.path.exists(output_result_path):
         with gzip.open(output_result_path, 'w') as f:
-            f.write('{}, {}\n'.format(speciesID, hexagonID))
+            f.write('{},{}\n'.format(speciesID, hexagonID))
     else:
         # ADD: process result logic here
         with gzip.open(output_result_path, 'a') as f:
